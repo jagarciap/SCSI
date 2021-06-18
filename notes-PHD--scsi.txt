@@ -1,0 +1,1880 @@
+2019_11_15.txt -PHD --scsi
+
+I will start to organize my code for the next meeting with Suzuki-sensei.
+> I want to start from the beginning using a tool to keep track of the changes (log file) and documenting everything, maintaining and organized workflow.
+
+----
+
+
+2019_11_17.txt -PHD --scsi
+
+The code must have the following characteristics/behaviours:
+> Functions declared in a .py file indicate the number of particles entering into the domain trough each particular cell. It also indicates the velocity of the particles. One function for each type of particle. It is important to take into account that the velocity of the particles is a resultant between the velocity due to solar wind, and the velocity due to the temperature of that particular species. The simulation itself must be completely detached from this .py file, just receiving the information from the aforementioned functions and not providing values to the file.
+> Outside boundaries are open boundaries. Every particle crossing any exterior boundary is deleted from the simulation. When calculating values in the nodes related to the particles a derivative = 0 approximation will be used. For example: velocity will be considered as the average velocity produced by the particles inside the cells involved in the calculation; density is calculated with the number of particles of such cells, and dividing by half of the usual volume computed for the rest of the cells.
+> Cartesian mesh is ok for now, but let's try to keep the code as generic as possible.
+> 2D is ok for now.
+> I will make the E field in every node an addition between the E-field calculated with the Poisson solver, i.e. the electric field created by the interaction of the Spacecraft with the enviroment, and an external electric field that can vary from node to node. In this first simulation the external E-field will be 0.
+> I highly doubt that any B-field created by the Spacecraft will become necessary to take into account at any stage of development of this code. So far, I will just add an external B-field with the same characteristic of the E-field above, being B = 0 for now.
+> About the inner boundary, the particles impinging into the Spacecraft will be deleted from the mesh. The function(s) that will handle this part will receive a function that decide the number of electrons or particles created due to the incoming particle. As such, the function(s) must receive an indetermined number of species, because ablation will be included later which would mean than several types of species might be created from this impinging effect.
+> The function mentioned above will make use of other function(s) that must register the current density of incoming and outcoming particles, of any species represented in the simulation. It might be passed to the previous function as an argument.
+> To prevent any future interest in analyzing particular phenomena related with electrons of different origins from being difficult, the program will keep all these electrons and particles that are identical but from different sources as different species (different classes in the program). This may be organized with implementation of abstract classes, with abstract classes representing particles that are physically different, and inside each abstract class, derived classes with same physical characteristics but with different origin. 
+> I think it is better to put the values of current densities in the nodes representing the Spacecraft as attributes of the classes. I should consider, in overall, putting anything related to particles in these classes. If I follow the same practice with electromagnetic fields and the rest of physical entities of importance in the simulation, I might be able to not need the 'world' class at all.
+> Abstract classes of different species of particles may derive from an abstract super-class called particle. Something like that may be done with electromagnetic fields. In general, it seems as a good practice to organize this code as an object-oriented program.
+
+----
+
+
+2019_11_23.txt -PHD --scsi
+
+> So, I am choosing Github as my repository for the code.
+> The name of the project will be: SCSi (Solar Corona - Spacecraft interaction).
+> At the end of each working session, I should update my computer's version and Github's repository version.
+> I will construct abstract classes with 'abc.py' module.
+>I will also save and keep updated the logfile "notes-PHD--scsi.txt" which is basically all the entries of this diary up to that day. The command is the following:
+2019_11_23.txt rm notes-PHD--scsi.txt && for i in 201*; do awk 'BEGIN{a = 0} /-PHD --scsi/ {a = 1; print FILENAME, $0; next} /\\endInput/ {if (a ==1) print RS; a = 0; next} {if (a ==1) print $0}' $i >> notes-PHD--scsi.txt; done && cp notes-PHD--scsi.txt /home/jorge/Documents/PHD/Simulations/SCSi
+> I am doing my class diagram with Inkscape following UML Class Diagram standards (I bookmarked a webpage that is very concise in explaining the standard).
+Source: https://www.visual-paradigm.com/guide/uml-unified-modeling-language/uml-class-diagram-tutorial/
+
+Construction of classes:
+
+Notes:
+> Mesh and PIC concrete classes (defined type of mesh and PIC) are closely linked. I do not want them to receive instatiation of the other so rather they will both import each other library, and will make use of the methods.
+> I still have to think if I will create a Point class, how to recognize boundaries, and where to put areas of boundary points (in order to calculate fluxes).
+> Also how to treat particles: Species? Just Particle class? Each particle as an object? Arrays of velocities and positions?
+> Because it would be a waste of storage to keep points inside the Spacecraft, I think it is better to build the mesh between the inner and outer boundaries. Then I will create, for every different case of Spacecraft, a new file that will take care of the methods necessary to handle the inner boundary. I want to somehow detach this file and its methods from the methods that will take care of the physical phenomena. Something like this file provides the information whether a particle hit the spacecraft, but does not calculate the current nor deletes the particle. For the methods to handle outer boundaries, same standars will be applied to them. The outher boundary is closer linked to the mesh itself, but I will keep it as separate file to use the same logic as with inner boundaries. Then, every concrete mesh class will import the appropiate inner and outer boundary files, so that from outside, mesh objects can handle everything related to boundaries.
+> For the first simulation I will use as the spacecraft a 1m-side cube. Therefore, the artificial depth of my code will be 1m.
+> The First and outer boundaries will handle the information of the boundaries, which is why values such as nPoints, nx, ny and so on cannot be provided by the main program. They will be stored at a file called domain.py that will be imported by both boundary files.
+
+
+Mesh (Abstract)(Association between Mesh and PIC):
+
+Definition = Defines the type of mesh.
+Attributes:
+	+nPoints (int) = Number of points in the mesh.
+	+volumes ([double]) = Volume of each node.
+	+pic (PIC) = Object that provides pic methods (Association between Mesh and PIC).
+Methods:
+	+setDomain() = This function, with the values provided by the boundary files, will create the mesh, by setting up volumes, nPoints and any other subclass variable.
+	+getPosition([int] i): [double, double y] = For a each index return its real position.
+	+getVolumes() = calculates the volume of each node and stores it in volumes attribute.
+	+print() = Print a VTK file / Matplotlib visualization of the mesh (points and connections between particles).
+
+Mesh_2D_rm (Inherits from Mesh):
+
+Definition = Mesh class for a 2D rectangular mesh.
+Attributes:
+	+xmin (double) = Left limit of the domain (closest to the Sun).
+	+xmax (double) = Right limit of the domain (farthest from the Sun).
+	+ymin (double) = Bottom limit of the domain.
+	+ymax (double) = Top limit of the domain.
+	+depth (double) = Artificial thickness of the domain, to make it three-dimensional.
+	+nx (int) = Number of nodes in the x direction.
+	+ny (int) = Number of nodes in the y direction.
+Methods:
+	+Implementation of Mesh methods.
+
+
+PIC (Abstract)(Association between Mesh and PIC):
+
+Definition = Indicate the methods that all PIC classes have to implement. Each PIC concrete class will depend on the type of mesh, as well as the type of PIC algorithm implemented.
+Methods:
+	+scatter([double, double] positions, double value, [double] field) = Receives the positions of the particles, and makes scatter procedure, calculating the values of field for each node.
+	+gather([double, double] positions, [double] field): [double]field_p = Calculates values of the field in particles' positions, returning these values in an array as long as positions, called field_p.
+
+PIC_2D_rm1o (Inherits from PIC):
+
+Definition = PIC class for rm10 ('r'ectangular 'm'esh, '1'st 'o'rder implementation).
+Methods:
+	+Implementation of PIC class methods.
+	+scatter_density = return densities of that species in every node of the mesh.
+	+scatter_velocity = return velocities of that species in every node of the mesh.
+	+scatter_flux = return flux of particles of that species into every indicated node (not all the mesh).
+
+Species (Abstract):
+
+Definition = This abstract class is the wrapper for everything related to particles. Any species of particles inherits from this class.
+Attributes:
+	+q (double) = charge of the species.
+	+m (double) = mass of the species.
+	+q_over_m (double) = q/m.
+	+debye (double) = Debye length of the spcies.
+	+spwt (int) = specific weight of the species.
+	+max_n (int) = max. number of particles for the species.
+	+mesh_values (Particles_In_Mesh) = object to store anything related with the particles in the mesh.
+	+part_values (Particles) = oject to store anything related to the actual particles in physical space.
+
+Proton (Inherits from Species):
+
+Definition = Species that take care of protons.
+Attributes:
+	+type (string) = some string descriptor that indicate the type/source of protons.
+	+Species attributes.
+
+Electron (Inherits from Species):
+
+Definition = Species that take care of electrons.
+Attributes:
+	+type (string) = some string descriptor that indicate the type/source of electrons.
+	+Species attributes.
+
+Ion (Inherits from Species):
+
+Definition = Species that take care of ions.
+Attributes:
+	+type (string) = some string descriptor that indicate the type of ion.
+	+Species attributes.
+
+Neutral (Inherits from Species):
+
+Definition = Species that take care of neutrals.
+Attributes:
+	+type (string) = some string descriptor that indicate the type of neutrals.
+	+Species attributes.
+
+Particles_In_Mesh (Abstract)(Composition with Species):
+
+Definition = Store values of distributions in the mesh related with particles. It wraps all the attributes that all particles must have.
+Attributes:
+	+nPoints (int) = Number of nodes in the mesh (Same as mesh class).
+	+density ([double]) = Density values at each node.
+	+velocity ([double, double]) = Velocity at each node. Rows are different points, columns are (x,y,z) components if they are available.
+
+Electrons_In_Mesh (Inherits from Particles_In_Mesh):
+
+Definition = Actual implementation of Particles_In_Mesh for electrons.
+Attributes:
+	+flux_spacecraft ([double]) = Perpendicular flux density of electrons going in (+) or out (-) of the spacecraft. The number of rows is the number of points compounding the mesh,
+									and each value represents the flux trough the line (area) next to the point (in ant-clockwise direction).
+	+Particles_In_Mesh attributes.
+
+Particles:
+
+Definition = Stores values related with the particles themselves. (
+Attributes:
+	+current_n (int) = current number of particles.
+	+position ([double,double]) = Position of every particle. Rows are different particles, columns are (x,y,z) if available.
+	+velocity ([double,double]) = Position of every particle. Rows are different particles, columns are (x,y,z) components if available.
+
+
+----
+
+
+2019_11_23.txt -STOPIC --github -PHD --scsi
+
+> Differences between "fetch" and "pull": fectch just downloads the new changes into your local repository. pull, besides that, overwrite the new changes in your local files.
+> I am installing something called 'hub' that is a project that aims to wrap git and implements from command line usual actions of Github.
+> I am configuring Git for my project with 'git config':
+	git config --global user.name "Jorge Garcia"
+	git config --global user.email "jorge-02@hotmail.es"
+> Workflow from computer to server (Github website):
+>> Work in my computer.
+>> 'git add *': Add every new file to the git local repository. Files are 'staged' (meaning they are registered in my local git repository.
+>> 'git commit -m "[Comment]"': Commit every staged file of my local repository.
+>> 'git push origin master': Exactly copies the new files and files changed to the destination repository, in this case 'origin', that is an alias for my remote repository in Github. 'Master' is the branch I am pushing.
+>> 'git pull origin master': Synchronizes (overwriting) branch 'master' of local repository with remote repository 'origin' ( My Github in my case).
+
+----
+
+
+2019_11_30.txt -PHD --scsi
+
+I have founnd a document that I put in the "Papers" folder of my "PhD" folder that explains how a Capacitance matrix is created. I have to think more about it, but I suppose the idea is to establish relative capacitances between every two nodes of the mesh and every node with respect to some ground, and then, using the charge in every node from the PIC step, calculate the voltages. Actually, the paper "2009_Evaluation of Electric Field Probe Onboard Spacecraft using a 3D PIC Simulation" and the book "1985_Plasma Physics via Computer Simulation_Birdsall-Langdon" both referred to the book "Computer simulation using particles / R.W. Hockney and J.W. Eastwood" when mentioning this Capacitance Matrix method. There are several copies in UTokyo so I will go on Monday to get one.
+
+----
+
+
+2019_12_02.txt -PHD --scsi
+
+> Capacitance Matrix: So, what is the idea? The charge at any point in the spacecraft is the integral of net current to the spacecraft in from t=0 to that moment. Then, by using \vec{V} = C^{-1}\vec{Q} with \vec{Q} the charges in the nodes of of the spacecraft, V can be obtained for the same nodes.
+> Another idea, called immersed boundary, is to put sufficiently large permittivities in the nodes representing the spacecraft. Using finite \rho, but "almost infinite" \epsilon, makes \nabla\phi almost vanishing, which is the intention for a conducting material.
+> The conclussion of the day regarding this topic is: Calculate the charge accumulation at the nodes as mention in the first item. Probably, after each iteration, I should redistribute the charge in a way that makes the potential equal to zero. Then, in next iteration, use this previous charge in each node, plus current*timestep. Now, having this and knowing the C^{-1}, V can be calculated. which will be v_{sc}*\vec{1}. As such, the only part remaining is to find the capacity matrix. For this I have to solve the problem of finding the potential for a square at fixed potential as inner boundary, and infinite as outer boundary. I think is viable to make \phi = X(x)Z(z) and work with one quarter of the space. The potential in the diagonal boundary has to satisfy that \vec{E} perpendicular to the diagonal equals 0. Obviously, the other two boundaries are V(sc) = v_{sc} and v(\infty) = 0. Then, using Gauss law in the spacecraft, find v_{sc} such that the charge is 1. After this, make \frac{d\phi}{dz} to find the charge density and thus store the values of how a total charge Q is redistributed throughout the surface of the spacecraft.
+
+----
+
+
+2019_12_09.txt -PHD --scsi -MAESTRIA --transitorio_1D
+
+> I can use the computer in front of the table and the MacPro one. For both of them I should check if I will interrupt or somehow affect other people's code and ask for permission.
+> In the computer in fron of the table I will use Conda to run the code. Commands to use Conda:
+>> conda activate jorge
+>> conda deactivate
+
+> So far, the code in /home/jorge/Documents/Instituto_Balseiro/Documentos_Maestria/Simulaciones/Preliminary_Version/source_FifeThruster is working. I will copy that version into Hayabusa 3. I also updated the error of the energy term Jj in the Dropbox folder. I corrected the (+) to (-) in the exponential term in ionization.
+> I put my Master's code into Github. I have to ask Daniel about privacy issues, but in general I want to keep stored a version of the code that works, alongside my thesis and some other documents.
+
+> The code will be working with mks system, at least for now.
+> The constants of the mesh not related to the boundaries are directly written in the init function of the class.
+> Addition to mesh_2D_rm:
+Definition = Mesh class for a 2D rectangular mesh. The organization of the points will work as 0<=i<nx and 0<=j<ny. Also, for k parameter 0<=k<nPoints, k = nx*j+i.
+#       +dx (float32) = Distance between adyacent horizontal nodes
+#       +dy (float32) = Distance between adyacent vertical nodes
+
+
+
+----
+
+
+2019_12_12.txt -PHD --scsi -STOPIC --python
+
+> After deliberating for a bit, I have decided to maintain all the classes' codes with self. I think it is clearer to read it that way afterwards and reduces the probability of coding errores related with differentiating when to declare variables and functions as class or instance attributes. I show the discussion below:
+"So far I am using 'self' to define the attributes inside the classes. That means that the attribute is considered as an instance attribute rather than a class attribute. Same with functions define with 'self' as first argument. For now I will stop using 'self' in the classes that will be instanced just once, since I am adding this four additional letters unnecessarilly each time. Maybe in the future I can start using, for example, different PIC techniques for different parts of the domain, or a mesh that is a combination of different meshes. In those cases I might be instantiating multiple times the same class, and I will need then to change the code. I will stop using self for variables and I will declare them in the class scope. However, methods will still include 'self' since otherwise, to be part of the class, 'self' has to be replaced by 'cls', and it goes through more work since class methods then possibly cannot be called as instance.function_name()"
+
+> New addition to Mesh class:
+#	+getIndex([double,double] pos): [double,double] = For each real position returns its index value. Important to remember that the number of columns may vary
+#           depending on the actual type of mesh subclass used.
+Also, now it's not necessary to use getVolumes() so it was deleted.
+
+----
+
+
+2019_12_17.txt -PHD --scsi
+
+> Now the classes Mesh and Mesh_2D_rm work! I printed the mesh in paraview and everything is working as expected: volumes and coordinates.
+> Correction in PIC class:
+#	+scatter([double, double] positions, [double] values, [double] field) = Receives the positions of the particles, and makes scatter procedure, calculating the values of field for each node.
+
+----
+
+
+2019_12_18.txt -PHD --scsi
+
+> So, the Mesh class was receiving an instance of PIC, but PIC needs to know what kind of Mesh is being used. Considering that PIC class needs the Mesh instance for its functions, this class has prevalence over Mesh. On the other hand, conceptually speaking, one particular mesh may hold different PICs, or, saying in better terms, several PIC classes may be based on the same Mesh, but not the opposite. With that said is like particular class Mesh -> several PIC classes. So, Mesh has to be initialized first.
+> I deleted PIC from the attributes of a mesh and add the mesh as attribute to PIC.
+> New additions to mesh:
+	+arrayToIndex([ind] array): [int, int] = For the indexes in the 1D array, obtain the indexes used for the particular mesh.
+	+indexToArray([ind, ind] index): [int] = For the indexes used for the particular mesh, obtain the 1D version for the array.
+> When translating code from my Master's code to SCSI, that SCSI is using nx and ny as nodes, but in my Masters are number of cells.
+> I am deleting the rows that took care of the particles at the edge (i = nx or j = ny) so now I will start considering that particles at those positions are removed. I think that will create a faster and easier code, with no perceptible losses in numerical precision.
+> There have been many small changes in the definitions of functions in PIC and PIC_2D_rm1o.
+> Species has to be declared after the Mesh, so that the attributes of Mesh can be used to define Species.
+
+----
+
+
+2019_12_19.txt -PHD --scsi
+
+> I will make a class Field, subclasses Electric_Field, Magnetic_Field, with the functions related with fields and interactions of these fields with the particles. These classes will have as attribute the file that contains the functions which handle with the boundaries of the fields. They will also have as import the file 'field_solvers.py' that compute the fields.
+> I am also implementing a boundary class that will handle methods related with boundaries. This is for later work, so let's write it down: The Abstract class may contain different methods already developed that are more general, like applying a Neumann boundary or a Dirichlet boundary to some nodes, then the subclasses can use these methods for their specific; this is to prevent too much code copy-pasting with every new version of a boundary. Also, it might be a good idea to put as an attribute of boundary, an array with the indices of the nodes that represent that boundary. Actually that last one I will use it.
+> So far I have been repeating many attributes through different classes. I will keep it like that for now because I am trying to make the first functioning version of the program, but at some point it will be good to review those redundancies.
+> [IMPORTANT]: There will be many 'boundary line units' in the code. Everytime working with them, they will be represented by the node next to them in anti-clockwise direction. In other terms, for every node, its line will be next to it in clockwise direction.
+> Inject particles contains a lot of information on how the workflow of the program works. New attributes to mesh, to Particles_In_Mesh.
+
+----
+
+
+2019_12_21.txt -PHD --scsi
+
+> I forgot to mention that I am injecting the particles in injectParticleFace in volumes that have the nodes at their center, different from the previous approach in the Masters' code where the volumes where determined as the volume in front of the areas which were the working units, with area meaning the regions delimited by the nodes.
+> I could consider using numba for some 'for' loops in my code, as a midway of accelerating the code later on.
+> Something to care about in the future, in particular the last part.
+#       NOTE: This function needs to be revised. random should not spread throughout different cells, and should use the same seed for every function call.
+
+----
+
+
+2019_12_22.txt -PHD --scsi
+
+> Now mesh, boundary, outer_2D_boundary, species and pic are "compiling". injectParticlesFace function has the potential to be further generalized and thus be used as the common method to insert particles troughout the whole mesh, but so far some of its line are mesh-dependant so it needs to be revised.
+> As the first try on my code I am using as input the values showed by guillemant2013simulation.
+> Right now dx = 0.25, and despite protons moving around 0.025 at max. per timestep, electrons due to its lighter mass and thus its higher thermal velocity move around 0.3. Because of this I will make a nested loop for electrons movement, with e_dt being 10 times smaller than p_dt.
+> Electron acceleration gained during its travel trhough the domain is approx 1/2 of the velocity due to its temperature. It will not influence the mesh for now because the dx is 10 times higher than the distance per timestep without acceleration, but be careful in the future.
+> In gather function, in pic.py, I think osme lines may be optimized later.
+> Besides the classes presented in class.txt, the code works with no class files like constants.py, main.py and output.py.
+> Another note about optimizing in output.py.
+
+----
+
+
+2020_01_07.txt -PHD --scsi
+
+> When explaining the idea behind the use of 'residuals' to Sano, I realized that something sounded weird there. If I am storing the fractional part in every step and then adding to the next, besides also adding a random fraction between 0 and 1, I am introducing more density than expected. One more particle in every step increase the density by 3e-8, which is 1/23 of the density being used right now. Now, to solve the issue of losing always a part of the density, we could just add every step the residuals, without the randomnes, but that would create a "breathing" phenomenon in the simulation. I thing that a good idea is to just add the random number. The more you loose when truncating, the more probable this random number will aggregate a new particle every step.
+> Besides, I have to check the boundary part x=xmin, x=max in injectParticles, since in my code particles being at x=min and x=max are eliminated.
+
+----
+
+
+2020_01_15.txt -PHD --scsi
+
+> So far the line of thought regarding INJECTION OF PARTICLES goes like this: 
+>> Currently I am injecting particles just in the left face, and eliminating particles as they cross the boundaries. I have to check it again, but I think this approach is creating a distribution of less particles than expected near all the boundaries except for the left face. One trick would be to treat top and bottom boundaries as mirrors, reflecting particles (this is done in paper ..., for example). Two issues with this: First, particles affected by whatever happens in the domain (different velocity, trayectory, etc.), instead of going away from the domain, would reflect back, interacting again with the domain, creating non-physical interactions. Second, the idea of mirroring particles is to simulate the idea of what would happen in reality: some imaginary border is created, some particles leave the domain and some others enter. The new particles entering into the domain have not previously being affected by the domain. Mirroring particles would produce a different physical situation at the boundaries. This problems would disappear with a domain big enough, so that things happening inside the domain are not that strongly affecting the boundaries, but this computationally costly. Maybe an improvement over the mirroring technique would be to reset the velocity of the reflected particles to a MB-distribution. That would leave concentrations of particles in some regions of the boundary, due to the effects of the physics inside the domain, as the only non-physicial boundary effect.
+>> Another idea is to inject particles in all the boundaries, taking into account the correct density expected for free stream, which involves which injection box to choose and what velocities to provide for the particles.
+> Dummy box: To solve all this seemingly complicated problems: insert a dummy box. Since you are providing a MB-distribution before the effective domain, the technique assures that at the boundary of the domain you're receiving the correct distribution. Because the dummy box empties over time, it is necessary to refresh it each time. It is important that velocities should follow the expected velocity distribution and that position should be random. In that way, particles with all the range of velocities will go into the domain.
+
+> So far the new function is not mesh-independent and is not so efficient. I think I might avoid the part of adding particles and just send the arrays to the advance function.
+
+----
+
+
+2020_01_16.txt -PHD --scsi
+
+This is the new Boundary class. The documentation was updated and the methods for dummy box injection are being created. Notice that createDummyBox is expected to be solved in every subclass, depending on the geometry of the boundary and the mesh.
+
+> CreateDummyBox: I wonder if the thing I am doing right now is more or less efficient than a python for, since I am going trough location array many times.
+
+--------------------------------------------
+
+Boundary (Abstract-like: will also have common methods that can be used by sub-classes. In composition with mesh):
+
+Definition = Class that shows the methods and attributes needed for each particular boundary arrangement.
+Attributes:
+	+type (string) = string indicating the type of boundary. It will be of the form "[Inner or Outer] - [Sorce, e.g. Spacecraft, Component, etc.]".
+	+location ([int]) = array containing the indices of the nodes that the boundary represents.
+Methods:
+	+applyElectricBoundary([double]) = Applies the boundary condition to the electric field passed as argument.
+	+applyMagneticBoundary([double]) = Applies the boundary condition to the magnetic field passed as argument.
+	+applyParticleBoundary(Species) = Applies the boundary condition to the species passed as argument.
+    +createDummyBox([ind]location, PIC pic, Species species, [double] delta_n, [double] n_vel, [double] shift_vel) = create the dummy boxes with particles in them.
+   
+Methods stored here for convenience:
+    +injectParticlesFace(self, location, pic, species, delta_n, n_vel, shift_vel): 
+   	++Function that inject particles into the domain.
+   	++Parameters: 
+   	++location ([ind]) = Nodes indicating the faces where the particles are going to be inserted. Each node represents the volume surrounding it. Location should be ordered increasingly.
+   	++pic (PIC) = Instance of PIC for calculations. It also constains mesh, which is used in the function.
+   	++species (Species) = Species to be inserted. It contains inside Particles_In_Mesh 'residuals' which is for each node the values of remnants from the insertion at the previous step.
+   	++delta_n ([double]) = For each node in location, the density that is going to be inserted at this timestep. The array is ordered with the order of the nodes in mesh.
+   	++n_vel ([double,double]) = For each node in location, the thermal velocity (for a the MB distribution) that the inserted particles will represent. Same order as delta_n.
+	++shit_vel ([double, double]) = For each node in location, an added velocity that does not come from temperature origin (like solaw wind average speed.
+
+	+injectParticlesDummyBox([int] location, PIC pic, Species species, [double] delta_n, [double] n_vel, [double] shift_vel) = Inject the particles in location indices by creating dummy boxes around them, creating particles
+		inside of them, moving the particles, and then adding the ones that entered into the computational domain.
+
+    +addParticles(Species species, [double, double] pos, [double, double] vel) = Add to Species the new particles, each represented by a row in pos and vel.
+    +removeParticles(Species species, [ind] ind) = Removes the particles from species stored at 'ind' positions.
+    +sampleIsotropicVelocity(double vth, int num) = It receives the most probable speed vth = \sqrt{2kT/m} and creates num random 2D velocities with their magnitudes following a Maxwellian distribution.
+
+--------------------------------------------
+
+> I created a "dashboard.py" file where I will be storing all chunks of code that for whatever reason are not necessary for the code, but might be of use in the future.
+> I am storing the last results which were run with 'injectParticlesFace' function.
+
+----
+
+
+2020_01_17.txt -PHD --scsi
+
+> The implementation of the dummy box works, and besides the not so elegant 'createDummyBox' function, everything else in the code is organized.
+> So, I will start implementing the particle tracker. In applyParticleBoundary I will insert an argument 'True' or 'False'. If true, it will call the function to delete particles from the storage of particles being tracked. In addParticles I will do the same, adding new particles to track. The storage will be handled as a list of instances of a class called 'Species_Tracker'. It will contain a numpy array of the indices of particles being tracked at any moment (indices with respect to position in part_values). The array will have the number of rows as the number of particles to be tracked, first column being the indentifier of the particle (from 0 to num-1) and the scond column being the index in part_values arrays. Ok, I will make just one column with the index in part_values, since the position of the index in the array can be used as the identifier of the tracked particle. If a particle is deleted, the index will change to 'numpy.nan'. addParticle will check for nans and will add the necessary amount of particles. Since injection of particles occurs after advance of particles, when the program reaches the stage of printing, no row shoule be nan. {Note: however I would like to check how vtk files handle 'nan' values, to make it compatible rather than raising an unwanted error}. There will be a class 'Tracker' that will receive a variable number of arguments will all the species that the user wants to track, and will create the list of instances.
+> I might try as well to put inside the Tracker class a function that does the graph. Advantages: Maybe I can have as a default the graphing parameters from the last execution. Disadvantages: I would need to open a python shell, import the file and then run the function.
+> Maybe is more organized to add the attribute of 'type (string)' in species, create the string step by step in the 'init' functions of each class. Say: Proton_SW uses super().__init__ where the string is "Proton - " and then Proton_SW adds "Solar wind".
+> Later I could pass arguments to Tracker as tuples '(species, num)' with 'num' being the number of particles to be tracked.
+
+Meeting:
+
+> How complicated is the mean of transportation and set up such that the figure is not affected by the enviroment before the experiment?
+
+----
+
+
+2020_01_18.txt -PHD --scsi
+
+> I am adding to the class Species_Tracker the following line:
+self.position = species.part_values.position
+Since Python works with references, the burden of memory for the program is just the cost of storing a pointer to a memory address (4 bytes for 32-bit systems and 8 bytes for 64-bits system). Besides, this has the advantage of a pointer, a.k.a. I can modify species.part_values.positions and the changes will appear at self.position too. I am not sure this is the most efficient way of building the code, though.
+> So, I am totally changing the apporach to the particle_tracker treatment. Basically I will have a print function in output, and I will also put these arrays of the indices to be used to track the particles, inside each species that is going to be tracked, alongside a Boolean "tracked" that will indicate whether the species needs the treatment in removeParticles and addParticles. In that way there is no need to pass arguments to the functions. Because the species are being treated as different variables in the main, I will just pass the necessary species to the 'print' function, and I will include and assertion to check whether the species effectively are being traced. In order to reduce the usage of memory and make the code more detachable, I will include a "num_tracked" variable in every Particles of size uint16 (0 to 65535). If it is 0, then the species is not being tracked. If more particles are being tracked, the size of this variables needs to be increased. Keep in mind that the python 'Boolean' object costs 28 bytes whereas the uint16 costs 26. If I want to keep things efficient, the type of the array "trackers" should be the same type as 'max_n' and 'current_n'.
+
+----
+
+
+2020_01_19.txt -PHD --scsi
+
+> When certain tracker is not following a particle, its value is not going to be "numpy.nan" anymore but "species.part_values.max_n". numpy.nan works as a float in Numpy, so I cannot create these arrays of indices having nan inside. On the other hand, these arrays already had the need to handle the biggest possible index, i.e. max_n-1, and max_n as an index will never appear, so I think it is pretty good.
+> The code developed to handle the trackers in removeParticles has been tested in test.py succesfully {And I think is pretty awesome how it works {:D}}.
+> The 'graph_particle_tracker' file works! I would like later to redefine how I choose the particles to be tracked, since right now most of the particles from each species are being selected at the same time, so they are showing a particular group of them and not a more random general group. Also, I would like to break the particle tracker lines once the particle as been deleted and recplaced by another one.
+
+----
+
+
+2020_01_20.txt -PHD --scsi
+
+The code now works in the stage of free stream of particles, still not interacting through electromagnetic forces. Particle Tracker tool is not working well. It seems that after the deletion of particles, the new particles selected are not the same through every step. The highest chances are that my code of saturday night is not working correctly, because even some particles that surely don't disappear, look like they do.
+
+----
+
+
+2020_01_31.txt -PHD --scsi
+
+> I modified 'Field' class by eliminating nPoints and boundaries. It was not necessary since all that information is contained inside mesh, inside pic, and even gives more freedom for later variations of the code.
+
+----
+
+
+2020_02_07.txt -PHD --scsi
+
+> Last time there was work on preparing everything for the poisson solver except for the methods that go inside solver.py.
+> I am following the book "Computer Simulation Using Particles" in the implementation of he Poisson Solver. I am including as an argument the potential of the previous step so that the solution is reached in less time.
+> Spectral radius is the largest absolute value among the eigenvalues of the matrix.
+
+----------------------------------
+
+# Method that computes the electric potential for a 2D rectangular mesh using the method of
+# Successive Over Relaxation with Chebyshev Acceleration (SORCA). The method assumes that the 
+# boundaries has been treated previously and assumes a Dirichlet boundary, so it only calculates values
+# for the inner nodes. If a Neumann condition is desired, then the outer layer nodes are calculated correspondingly 
+# in the later method apply applyElectricBoundary(e_field), not here.
+# rhs is the right-hand-side of the equation Poisson(\phi) = rhs, pot is the potential before being updated, and
+# err is the maximum variation expected between succesives steps to reach solution.
+def poissonSolver_2D_rm_SORCA(mesh, pot, rhs, err = 1e-3):
+
+----------------------------------
+
+----
+
+
+2020_02_08.txt -PHD --scsi
+
+> For the implementation of the derivation of the electric potential I will use the typical second order in the inside of the mesh, and for the border it will be Dirichlet. The derivation in the inside of the mesh will be carried out by the method "derive_2D_rm" in solver.py, whereas the boundary nodes will be handled by the method "applyElectricBoundary" in outer_2D_rectangular.py. It is strange but the boundary will regulate the derivatives through field -> solver; in that way the outer_2D_rm class remains separated from the election of the different methods to derivative, and it makes more sense for the Electric_Field class to handle how to manage the boundary. Also in that way I can store the method of derivatives at the boundaries in solver.py. The derivatives used are Pade 2nd order.
+> The code of the Poisson solver and subsequent calculation of EF has no syntax error. Only remaining include an acceptable initial condition so that the code don't explodes (so far I executed it and it reached the step_limit with a big error).
+
+New methods:
+
+----------------------------------
+
+#       +Computation of Dirichlet boundary condition at every node in location ([ind]). Every row in value ([double]) corresponds to one node in location.
+    def dirichlet(self, location, values):
+
+#       +Derivation of the scalar field potential ([double]) with the method of central differences, at nodes not in the boundaries.
+def derive_2D_rm(mesh, potential):
+
+#       +Pade derivation for the nodes in the boundaries. Normal 2nd order derivation when the boundary is perpendicular to the direction of the derivative.
+#       +Arguments:
+#       +location ([ind]) = location of the boundary nodes to be treated.
+#       +mesh (Outer_2D_Rectangular) = mesh with the information to make the finite difference.
+#       +potential ([double]) = scalar to be derivated.
+#       +Return: [double, double] two-component derivation of potential, with every row being one node of location.
+def derive_2D_rm_boundaries(location, mesh, potential):
+----------------------------------
+
+----
+
+
+2020_02_09.txt -PHD --scsi
+
+> Change of methods' names:
+>> output_vtk -> saveVTK
+>> particle_tracker -> particleTracker
+This, to maintain the protocol of mostly using first-word-lower-case then first-letter-next-words-upper-case for methods.
+
+> Now I am setting the gears for storing the simulation at a given moment as '.pkl' and being able to use it as initial condition for a later simulation. To maintain it relatively modular so that I don't have to modify the methods each time a new species or field is included in the simulation, I will pass as arguments fo the 'savePickle' and 'loadPickle' the instances of classes that are going to be stored or loaded. Accordingly, these methods will receive these theings as argvs* so that they do not need to know which kind of instances or how many instances are going to be stored or loaded. For a particular moment in the construction of the simulation, obviously, the number and order of instances have to be the same for both methods. Also, for the sake of organization, a particular order of the instances is to be followed: ts (timestep); fields: Electrics, Magnetics; Species: Electrons, Protons, Ions, Neutrals; part_solver (Particle Solver). Notice: 1. Plurals because there might be more than one Electric Field, Electron Species, etc. 2. part_solver contains PIC and PIC contains mesh. These latter two as o be unravel later in the main function. Inside the types not further specified now, an alphabetical order with respect to the classes' names will be maintained. This ordering may be modified in the future as the simulation grows.
+>> Oh, obviously: now a version of the last step of the simulation will be always kept stored, so as to use for 'savePickle'.
+
+> I am also setting things for 'saveVTK' method to function more modular and for using '.vtk' files as initial conditions for new simulations.
+>> 'saveVTK': Since the order doesn't matter here I don't need to put much emphasis into this, but I will follow the same order as with 'savePickle' and 'loadPickle' {Because, who knows?}. That being said, 'saveVTK' will function as these two methods: it will receive an undetermined amount of arguments. Each argument is a class with an 'saveVTK' method that will be called and will return a dictionary containing the string names of the scalar/vector distributions with its corresponding portion of code for storing them in a '.vtk' file. 'saveVTK' will iterate over all the arguments and will prepare everything to be printed in one '.vtk' file.
+>> As such, the 'loadVTK' function to be used for setting the initial condition of the new simulation has to have some knowledge of the things stored at the desired '.vtk' file. This is going to be handled in the same way as with '.pkl' files. 'loadVTK' function will have an undetermined amount of arguments, and the user has to provide the instances of classes desired to be extracted from the '.vtk' file. Each class knows what kind of scalar/vector distribution needs to function properly, and under which name is identified in the '.vtk' file. As such, the general 'loadVTK' function will be calling 'loadVTK' methods of each instance passed as argument.
+
+> Temperature distribution will be included in every species' information through an attribute of 'Particle_In_Mesh'. When implementing, let's not forget that to calculate temperature at a given 'n' step is important to calculate first the mean between the steps 'n+1/2' and 'n-1/2' for velocity. Actually, I should do that for velocity as well for when is to be printed for later post-simulation analysis.
+
+> To easily handle variations in the simulation regarding the number of species and fields simulated, I will create a class in 'main.py' called 'System'. This 'System' class is simply a wrapper for all the instances of the different classes that are necessary for the simulation to run. It will even contain 'ts' as an atribute. It will have two methods: 'arrangePickle' and 'arrangeVTK', which return the necessary attributes for saving and loading, in the correct order. I will write this code in 'main.py' to keep the  manipulation of the system and the simulation in one file, for ease of modification.
+
+----
+
+
+2020_02_10.txt -PHD --scsi
+
+> I realized that every time I am injecting particles into the domain, I have to rewind the velocity to math the LeapFrog condition. I corrected that on InjectParticlesDummyBox. I also noticed that this is the case only for LeapFrog, but different time integrators may require different estrategies for making the particles 'ready' for advancing on time the first time. Because of that, the method 'initialConfiguration' of the class 'Motion_Solver' is the one that is supposed to deal with that. To make it useful for "injecting-particles" methods in different stages of the simulation, I removed the 'updateMeshValues' responsability. New Adjustments:
+
+----------------------------------
+
+#       +initialConfiguration(Species, Field) = Make necessary adjustment to the initial configuration of species so as to begin the advancement in time.
+#           So far just E, so [Field]->Field.
+    def initialConfiguration(self, species, field):
+
+----------------------------------
+
+#       +injectParticlesDummyBox([int] location, PIC pic, Field field, Species species, [double] delta_n, [double] n_vel, [double] shift_vel) = 
+#               Inject the particles in location indices by creating dummy boxes around them, creating particles
+#       	inside of them, moving the particles, and then adding the ones that entered into the computational domain.
+    def injectParticlesDummyBox(self, location, part_solver, field, species, delta_n, n_vel, shift_vel):
+
+----------------------------------
+
+> The plan for 'saveVTK' and 'loadVTK' is to save is to use as the names of the fields in VTK files, the actual names of the attributes in the code. The function, though declared in 'Species', will be handled by 'Particles_In_Mesh'. 'Species' will add the prefix of the type of particle.
+
+> Several changes were done to the main.py file to include the new initial conditions. Shown below.
+
+----------------------------------
+
+## ---------------------------------------------------------------------------------------------------------------
+# Initiating data structures for the system
+## ---------------------------------------------------------------------------------------------------------------
+
+
+#System:
+#
+#Definition = Is the class that contains every variable and class necessary for the simulation to be executed.
+#Attributes:
+#	+ts (int) = Timestep of the simulation.
+#	+The rest of the variables will change with the simulation, but normally, there are:
+#	+mesh (Mesh).
+#	+pic (PIC).
+#	+fields (Field) = Probably several of them.
+#	+species (species) = Probably several of them.
+#	+part_solver (Motion_Solver).
+#Methods:
+#	+Remark about init(): It will "declare" the attributes necessary for the simulation to run. The actual assignment of atributes
+#		to instances of each class will occur during the 'initial condition' section of 'main.py'.
+#	+arrangePickle() : Variable = Return the attributes necessary to store the state of the system, in the order required.
+#	+arrangeVTK() : Variable = Return the atrributes for save and load of/from VTK files, in the "order required".
+...
+
+#Initialization of the system and the previous step
+...
+
+## ---------------------------------------------------------------------------------------------------------------
+# Initial condition
+## ---------------------------------------------------------------------------------------------------------------
+# Initial conditions are selected with a number next to the file when the program is executed, e.g. 'python3 main.py 2'.
+# If the initial condition requires more arguments, they are written here in the file.
+# Listed Initial conditions:
+# 1: Basic empty system.
+# 2: Execution from a VTK file.
+# 3: Execution from a Pickle file.
+...
+
+## ---------------------------------------------------------------------------------------------------------------
+# Set up of the system before the Main loop
+## ---------------------------------------------------------------------------------------------------------------
+
+## ---------------------------------------------------------------------------------------------------------------
+# Main loop
+## ---------------------------------------------------------------------------------------------------------------
+
+----------------------------------
+
+----
+
+
+2020_02_11.txt -PHD --scsi
+
+> Now the name of the species is called 'name', not 'type', and is stored directly in 'Species' class. The string is constructed along the constructors of subclasses. Type of species add the first word, and source adds the second. e.g. for protons in the solar wind, 'Proton' class receives " - Solar wind" and returns "Proton - Solar wind".
+> The class 'Field' and its subclasses suffered the same change. Now 'type'->'name' and the attribute is found in 'Field' but constructed through classes.
+> saveVTK and loadVTK were implemented for 'Species' and 'Field' under the same signature, to maintain saveVTK and loadVTK functions in output generalized. Nevertheless, they function different. In Species, the bulk of the process is handled y 'Particle_In_Mesh' and 'Species' only functions as a tunnel, also providing 'name'. In 'Field', functions are called directly from the most bottom-level class were they are implemented, and functions are constructed fractionally aong different levels of classes.
+> In order to maintain 'Field' and 'Species' independent of the type of mesh, and making 'Mesh' the sole handler of the type of mesh, three new functions were included for the process of VTK I/O:
+
+----------------------------------
+
+#       +vtkOrdering(array): array = The array received as argument is ordered in such a way it can be stored ina VTK file.
+#           The result is returned as a new array.
+#       +vtkOrdering(array): array = The array received as argument comes with vtk ordering and is reshaped to be stored properly in the code.
+#       +vtkReader(): Reader = Return the reader from module vtk that is able to read the vtk file.
+#		+saveVTK(string filename, dict dictionary) = It calls the appropiate method in 'vtk' module to print the information of the system in a '.vtk' file.
+
+----------------------------------
+
+----
+
+
+2020_02_20.txt -PHD --scsi
+
+> How the temperature of the Solar Wind is measured?
+> Work of today: Right now I'm running the code with one quarter of the original domain to have faster solutions with a larger amount of particles per cell, so to have less numerical fluctuations to see if that is the root of the problem with the Poisson solver. I'm also studying how well the ethod for adding particles to the mesh works, since this might be the reason for the strange fluctuations that appear from time to time. The code also is having a weird pulse every 110 steps (at least that's ow is recorded right now). It's important to study that. The temperature is now working well both is being calculated at around half of its correct value. There is a new folder, copy of the folder SCSI. It doesn't have anything of importance, is just to run two simulations at once.
+
+----
+
+
+2020_02_21.txt -PHD --scsi
+
+> According to \cite{cartwright2000loading} term usage, the kind of injection of particles that I want to accomplish is called "drifting Maxwellian flux".
+
+----
+
+
+2020_02_25.txt -PHD --scsi
+
+> Now it seems that the Poisson solver is working, but that the numerical inhomogeneities in the dominion do not allow the solver to converge. I will study that more. Poisson solver seems to be working without problems. Still, there is a factor 3 separating the value of temperature obtained from the simulation from the one expected. Reviewing that problem I found that the method used to load a Maxwellian distribution was incorrect. I was multiplying by \sqrt{2} one more time than necessary. So, I changed the definition of V_TH from \sqrt{2kT/m} to \sqrt{kT/m}, so now it is not accounting for the most probable speed, but a speed such that Maxwellian distribution is written as \exp{-v^{2}/(2V_TH^{2})}. However, this would mean less velocity, which in turn would mean less temperature. Tomorrow the work will be around seeing the details of y loading of particles. There can be problems about loading with a lot of numerical noise (not a good representation of the Maxwellian distribution) or even a factor of calculating wrongly the expected thermal velocities due to be working in 2D instead of 3D.
+NOTE: Change in the definition *_V_TH of something in constans.c. See upwards for more information.
+
+> The problem of the strange oscilation through time of densities and temperatures was because I was saving '.vtr' files without a proper ordering. Problem fixed. Actually, with the current values of SPWT, dx and dy, the simulation is producing low noise. Values such as mean density and temperature do not have much fluctuations.
+> Both electrons are protons are being loaded with an average of 6.9e9, not 7e9. It is necessary to fix this.
+
+
+----
+
+
+2020_02_27.txt -PHD --scsi
+
+> I have been working quite a lot in many things: 
+>>Now the temperature works but I still don't understand why. I mean, why the function is T = v_{rms}^{2}*m/k. 
+>> I create a set of functions for printing the positions and velocities of particles in a new folder called 'results_particles' and I create some functions to check how well the simulation is working. 
+>>The graphs are being plotted in 'test_results' and the ones created today do not have the electric field activated.
+> The method for creating velocities that follow a Maxwellian distribution was checked, the result is in 'test_results'. It plots a distribution of 'e^{-v^{2}/v_{th}^{2}} with v_{th} = \sqrt{2kT/m} as is now defined in 'constants.py' again.
+> I think all of the functions necessary to check to keep compatibility of the code accross OSes have been checked and updated.
+> Results of the gaussian fits to the cummulative of velocites in the last step of the simulation:
+#---------------------------------------------------------------------------------------------------------
+
+electrons_vel_x
+[9.27185187e+02 1.53913278e+05 1.71915658e+06] [[ 1.67514095e+03  4.80433453e-02 -2.07077443e+06]
+ [ 4.80433453e-02  7.67954478e+09 -2.85930133e+01]
+ [-2.07077443e+06 -2.85930133e+01  7.67954515e+09]]
+Temperature_vel_x 16.803872344735925
+electrons_vel_y
+[ 9.20258956e+02 -1.32808953e+05  1.76159826e+06] [[ 1.91490131e+03  3.47040804e-02 -2.44388598e+06]
+ [ 3.47040804e-02  9.35700297e+09 -4.32790122e+01]
+ [-2.44388598e+06 -4.32790122e+01  9.35700243e+09]]
+Temperature_vel_y 17.643805146514858
+
+protons_vel_x
+[   852.01505641 297041.8139957   44792.82212911] [[ 9.93515516e+02  3.54534382e-03 -3.48229440e+04]
+ [ 3.54534382e-03  3.66165624e+06 -1.87784461e-01]
+ [-3.48229440e+04 -1.87784461e-01  3.66165627e+06]]
+Temperature_vel_x 20.946148733445096
+protons_vel_y
+[  870.34100732 -3439.13950841 45482.6052894 ] [[ 1.29434080e+03 -1.19789359e-03 -4.50950452e+04]
+ [-1.19789359e-03  4.71335598e+06  9.86337652e-02]
+ [-4.50950452e+04  9.86337652e-02  4.71335636e+06]]
+Temperature_vel_y 21.596232726840576
+
+#---------------------------------------------------------------------------------------------------------
+I have to think about these results. Why the temperature is so different, the fits so badly done.
+
+----
+
+
+2020_02_28.txt -PHD --scsi
+
+> After considerig different ways of creating the method that chooses the new particles to be tracked, I arrived to the conclussion that the best way so far is to choose particles from the new group being added, and within it choose them equidistantly. If I do that over all the particles everytime I will create a bias in the type of particles being tracked, since they indexes will almost always be the same when the number of total particles starts to remain roughly constant. Also, the problem of choosing a particle already being tracked (then the efficiency problem of always checking which particles are already being tracked). Another solution was to choose the numbers randomly, but this slower than equidistant numbers. I think there is no problem with choosing a particular group of particles, since I do not know per se why the particles are being added, and as they are being eliminated, the indexes change to lower numbers for the particles still remaining.
+
+> Particle tracker seems to be working without major flaws.
+
+----
+
+
+2020_03_03.txt -PHD --scsi
+
+> For a detailed recreation of the Debye length, it is necessary to change dts, dx and dy. Theoretical Debye length is around 0.5m. Then I will use dx and dy of 0.05m. Right now dx and dy is 0.5m, so, accompanied with a 1/10 reduction of dx and dy, there needs to a 1/10 reduction of P_DT and E_DT. If I make a 2mx2m box, I will need NX = NY = 41. That means capacity of 1e5 for electrons and protons alike.
+NOTE: The reduction was not necessary (P_DT = 5e-8 and E_DT = 5e-9) because I was already using really small values of dt. With this values for Debye length, for example, protons move 2.2e-2m, and dx = 5e-2.
+> The system is already prepared to run a simulation to test the Debye length and plasma screening of the potential process. For that, I create a new file called 'user_defined.py' which is an species that basically requires the user to define all the inputs.
+
+----
+
+
+2020_03_05.txt -PHD --scsi
+
+
+> It seems I have fix all the minor more evident bugs of the new step in the code (inclusion of an inner rectangular border that would account for the satellite). Also, the file "sys_ts=0_2020-05-03_17h42m.txt" is a 41x41 node representation of the dominion, with the normal constant values of density, and magnetic field activated as well. Electric field 2D being calculated.
+
+----
+
+
+2020_03_06.txt -PHD --scsi
+
+Check the document 'Leap_frog_PIC_treatment' in 'program_structure' for today's work details.
+
+----
+
+
+2020_03_10.txt -PHD --scsi
+
+> So, the decision that I have taken in terms of the handling of the type of arguments needed to do the 'motionTreatment', is that all those things will be stored as attributes of the particular 'Motion_Solver', since they will change among different motion solvers.
+> So, the syncrhonization between position and velocity for the print of values into the mesh is done in two steps: First the velocity of the step n+1/2 and step n-1/2 are averaged. Then the normal scattering of velocity and temperature is done. The values of velocity in the step n+1/2 for each species are stored in the 'Leap_Frog' attribute vel_dic, and the update of this attribute is preformed at the function 'udpdateParticles'. In that way, the velocities of the particles that will be eliminated in the step n+1 are safe.
+> Then, everytime it is necessary to scatter velocities to the mesh, 'updateMeshValues' is called with the argument 'extent = 2' which inside executes the function 'motionTreatment'.
+> Because of the nature of the Leapfrog method, where for a particular step n positions are in step n whereas velocities are in step n-1/2, the values printed in the different outputs are from old_system. old_system then, from time to time doesn't have the particles velocities of the step n-1/2 but of the step n. This is something to take into account when using '.pkl' files. Also, since the values in the mesh for velocity and psition now belong to the same step, it is necessary to do a rewind when starting from a '.vtk' file.
+
+
+#---------------------------------------------------------------------------------------------------------
+Leap_Frog(Inherits from Motion_Solver):
+
+Definition = Implementation of Leap_Frog method. This method, as being more specific, is more dependant on the current situation of each simulation. As such it has to
+               be updated or new classes has to be created if the situation varies.
+
+Attributes: 
+	+type (string) = "Leap Frog"
+    +pic (PIC) = PIC solver. For this class specific methods not provided by PIC super class are used.
+    +vel_dic {String : [double,double]} = Is a dictionary containing the new values of velocities for every species. The key 'String' is the actual name of the species.
+Methods:
+	+initialConfiguration(Species, Field) = Make necessary adjustment to the initial configuration of species so as to begin the advancement in time.
+	    So far just E, so [Field]->Field.
+	+rewindVelocity(species, field) = Take the velocity of particles half a step back in time for 'field' electric field.
+	+advance(Species, [Field]) = Advance the particles in time. It will treat the particles as well as update the mesh_values.
+		Extent is a karg for updateMeshValues().
+	+updateMeshValues(Species) = Update the attributes of Particles_In_Mesh. Particular for each species, so it needs to be updated with every new species.
+	    Extent can be '0' indicating that every attribute of mesh_values is updated, '1' indicating that only necessary attributes are updated, and 
+	    '2' indicating that the 'non-necessary' attributes are the only ones updated. Notice that the criteria between 'necessary' and 'non-necessary'
+	    attributes will change with the type of phenomena being included.
+	+updateParticles(Species, Field) = Particle advance in time. So far only E, so [Field]->Field in argument.
+	+motionTreatment(Species species) = It takes the velocities array in the species.part_values atribute and average it with the velocities stored in vel_dic for the particular species.
+		That is, to synchronize velocity with position.
+	+Motion_Solver methods.
+#---------------------------------------------------------------------------------------------------------
+
+> Oh, and right now a longer run of the test of Debye Length is running.
+
+----
+
+
+2020_03_11.txt -PHD --scsi
+
+> New update to the program (below). This was needed because since the electrons are updated in a nested loop inside the loop that changes old_system everytime, when the pos-vel syncrhonization was happening, the step stored in old_system was n-1/2 and the step in vel_dic was n+c.ELECTRON_TS+1/2.
+
+#---------------------------------------------------------------------------------------------------------
+#	+advance(Species, [Field]) = Advance the particles in time. It will treat the particles as well as update the mesh_values.
+#           extent is a karg for updateMeshValues().
+#           update_dic is a karg for updateParticles(). 
+#       +updateParticles(Species, Field, int) = Particle advance in time. So far only E, so [Field]->Field in argument.
+#           If update_dic == 1, the vel_dic entry for the species is updated, otherwise it remains untouched.
+#---------------------------------------------------------------------------------------------------------
+
+----
+
+
+2020_03_16.txt -PHD --scsi
+
+> On Friday I let running three cases: 1. Debye Length, one particle in the center. 2. Debye length, potential of 20V in the right border and 0V in the left border. 3. Plasma oscilations, one group of electrons and protons close to each other.
+
+General: It seems 4000 steps are not enough for the simulations below to reach precise stationary values. Electrons reached (it seems) stationary values of density and temperature, but protons, even though not so much, still have a slope with respect to time.
+
+1. Well, it seems the exectution almost (see note above) reached an stationary state where the potential seems quite accurate (taking into account that in principle it should be \infty at the center) and the Deybe length theoretical value fits into the region fi value + error. However, the fit value changes a lot depending on the number of points being used. That causes me some distrust even though I know is normal because of the \infty nature of the potential. Something interesting is that the average density of electrons is around 7.2e9, and for protos is around 6.4e9. Also, temperature is higher (approx. 93eV) for protons and lower (~77eV) for electrons.
+
+2. Gotta work on this again, the potential in the borders is not behaving correctly.
+
+3. It seems is working nice (I can see the oscillation), but the execution stopped because there was an error in the 'particle_tracker' function, no wonder. I will implement a function that applies reflective boundaries on both user_defined species, and the function itself will be copied into the main program, since it can be of use later on.
+
+> I have implemented a reflective boundary for particles, stored in class "Outer_2D_Rectangular". For this work I change/add the following functions:
+
+#---------------------------------------------------------------------------------------------------------
+Class Outer_2D_Rectangular:
+	+applyParticleBoundary(Species) = Applies the boundary condition to the species passed as argument.
+    	type_boundary indicates the type of boundary method to apply to particles. 'open', the default mthod, deletes them. 'reflective' reflects them back to the dominion.
+    	**kwargs may contain arguments necessary for inner methods.
+    +applyParticleOpenBoundary(Species) = Deletes particles at or outside of the boundaries.
+    +applyParticleReflectiveBoundary(Species species, Species old_species) = Reflects the particles back into the domain.
+    	old_species refers to the state of species in the previous step.
+Class Leap_Frog:
+	+advance(Species, [Field]) = Advance the particles in time. It will treat the particles as well as update the mesh_values.
+        extent is a karg for updateMeshValues().
+        update_dic is a karg for updateParticles(). 
+        type_boundary indicates the type of boundary method to apply to particles. 'open', the default mthod, deletes them. 'reflective' reflects them back to the dominion.
+        **kwargs may contain arguments necessary for inner methods.
+	+updateMeshValues(Species) = Update the attributes of Particles_In_Mesh. Particular for each species, so it needs to be updated with every new species.
+	    Extent can be '0' indicating that every attribute of mesh_values is updated, '1' indicating that only necessary attributes are updated, and 
+	    '2' indicating that the 'non-necessary' attributes are the only ones updated. Notice that the criteria between 'necessary' and 'non-necessary'
+	    attributes will change with the type of phenomena being included.
+   +updateParticles(Species, Field, int) = Particle advance in time. So far only E, so [Field]->Field in argument.
+       If update_dic == 1, the vel_dic entry for the species is updated, otherwise it remains untouched.
+       type_boundary indicates the type of boundary method to apply to particles. 'open', the default mthod, deletes them. 'reflective' reflects them back to the dominion.
+       **kwargs may contain arguments necessary for inner methods.
+#---------------------------------------------------------------------------------------------------------
+
+----
+
+
+2020_03_17.txt -PHD --scsi
+
+Potential wall: I have to meausre the profile of the electric potential and compare it with a theoretical solution, but it seems to be working quite right. As expected, there's more density of electrons in the higher voltage part and more density of protons in the lower voltage region. Temperature seems almost uniform but there is a slight rise of temperature towards the high voltage end for protons and a slight rise of temperature to the lower end of voltage for electrons.
+
+> Ok, the plan so far is to create a decorator that receives a flag, to activate the timing measurement to any function that I want. Then, collect for every loop all those calls and store it in a log file, as in my Masters.
+
+----
+
+
+2020_03_18.txt -PHD --scsi
+
+> I created a decorator class in the file 'timing.py' to use it as a decorator in very function I want to keep track of its execution time in the program.
+
+----
+
+
+2020_03_19.txt -PHD --scsi
+
+> I implemented the execution time measurements throughout the code, and the existance of a constant perpendicular to the dominion magnetic field. Most of the documentation is already prepared in the files, it needs to be updated here and in the class file. Some documentation for the execution time part is missing.
+
+----
+
+
+2020_03_20.txt -PHD --scsi
+
+> Planning of the simulation execution for testing of the magnetic field. The range of the simualtion will need to be on the order of 100mX100m to observe the rotation of electrons (~16m). This scale should imply quasineutrality in the plasma, so less fluctuations of potential expected. Therefore, no need to use many nodes in the dominion. It will be reduced to 20x20 cells. Because now the particles will need to travel greater distances, p_dt = 5e-6, e_dt = 5e-7, that is, to maintain around 1/dx of traveled distance between steps. However, the period of rotation of electrons is around 1.8e-5, and because a snapshot is taken every 10 e_dt, then e_dt = 5e-8 and p_dt = 5e-7 in order to have a better track of the rotation motion. Around 1.2e3 steps are expected for a particle to from one border to the other of the dominion, so total number of steps will be set to 2000. That accounts for 1e-3s in total, whereas the gyroperiod for proton circular motion is about 3.3e-2. Thence, no noticeable circular motion expected. Also, gyroradious for protons is 2.24e3, whilst dominion is 100mX100m, so not enough space to capture that phenomenon.
+Then, to maintain around 50 macroparticles per cell, P_SPWT = e_SPWT = 3.5e9. Solar wind was activated again (drift velocity at 3e5\,m/s). The period of rotation for electrons is 
+
+----
+
+
+2020_03_24.txt -PHD --scsi
+
+> I have implemented a methodology for storing the execution time of each step of the simulation and of each one of the functions I have to look up to. I use a dictionary in a decorator class to store, for every decorated function, the execution time. The key in the dictionary is "number-name_of_function" with number being the position in the dictionary. Thus I can study in the same step the same function executed at different sections with different arguments. Then I manually make a new entry to the dictionary with the information of the global step, and at the end of each step I clear the dictionary. The class is stored in the file 'timing.py', and is as follows:
+o
+#---------------------------------------------------------------------------------------------------------
+#Timing
+#
+#Definition = Is a decorator class that stores execution time of decorated fuctions
+#Attributes:
+#	+count (int) = class attribute. Is a counter to uniquely identify each function
+#       +time_dict (Dict) = class attribute. Each entry is the execution of a function. The pair is key: '{count}-{name_of_function}', value: execution time.
+#       +func (Function) = Decorated function.
+#       +owner (object) = Is the 'Timing' class.
+#       +instance (Timing) = Each instance of the class 'Timing'.
+#Methods:
+#	+__call__( *args, **kwargs) = Method executed when the decorated function is executed. The arguments corresponds to the arguments of the decorated function.
+#       +__get__(instance, owner) = Executed before __call__. Allows each Timing instance to access the instance from which each function is called.
+#       +reset__dict() = class method. Reset values of class attributes.
+#---------------------------------------------------------------------------------------------------------
+
+> New functions added to output.
+#---------------------------------------------------------------------------------------------------------
+#       +saveParticlesTXT(dict sys_dic, [String] keys) = Stores the values of positions and velocities of the different species at a certain time.
+#           The file is created with the format "ts{step number}.dat" and stores the information in columns as:
+#           columns for position, followed by columns for velocity, one of these blocks for each species, ordered in alphabetical order.
+
+#       +saveTimes(int ts, dict dictionary) = Stores execution times in a file. If it is the first step in the simulation, the file is created. Otherwise,
+#           values are appended at the end of the file.
+#---------------------------------------------------------------------------------------------------------
+
+> For the implementation of the magnetic field some changes were made in functions of PIC and motion, but it doesn't reflect into their documentation. A new class called 'Boris_Push' was created:
+#---------------------------------------------------------------------------------------------------------
+#Boris_Push(Inherits from Motion_Solver):
+#
+#Definition = Implementation of  Boris algorithm for time integration. This method also creates desynchronization between v and x.
+#
+#Attributes: 
+#	+type (string) = "Boris Push"
+#       +pic (PIC) = PIC solver. For this class specific methods not provided by PIC super class are used.
+#       +vel_dic {String : [double,double]} = Is a dictionary containing the new values of velocities for every species. The key 'String' is the actual name of the species.
+#Methods:
+#       +initialConfiguration(Species, Field) = Make necessary adjustment to the initial configuration of species so as to begin the advancement in time.
+#           So far just E, so [Field]->Field.
+#       +rewindVelocity(species, field) = Take the velocity of particles half a step back in time for 'field' electric field.
+#	+advance(Species species, [Field] e_fields, [Field] m_fields) = Advance the particles in time. It will treat the particles as well as update the mesh_values.
+#           extent is a karg for updateMeshValues().
+#           update_dic is a karg for updateParticles(). 
+#           type_boundary indicates the type of boundary method to apply to particles. 'open', the default mthod, deletes them. 'reflective' reflects them back to the dominion.
+#           **kwargs may contain arguments necessary for inner methods.
+#	+updateMeshValues(Species) = Update the attributes of Particles_In_Mesh. Particular for each species, so it needs to be updated with every new species.
+#           Extent can be '0' indicating that every attribute of mesh_values is updated, '1' indicating that only necessary attributes are updated, and 
+#           '2' indicating that the 'non-necessary' attributes are the only ones updated. Notice that the criteria between 'necessary' and 'non-necessary'
+#           attributes will change with the type of phenomena being included.
+#       +updateParticles(Species species, [Field] e_fields, [Field] m_fields, int) = Particle advance in time. The function can receive multiple electric and magnetic fields.
+#           If update_dic == 1, the vel_dic entry for the species is updated, otherwise it remains untouched.
+#           type_boundary indicates the type of boundary method to apply to particles. 'open', the default method, deletes them. 'reflective' reflects them back to the dominion.
+#           **kwargs may contain arguments necessary for inner methods.
+#       +electricAdvance([double,double] e_field, Species species, double dt) = Updates the velocity one 'dt' forward.
+#           Boris (1970) advancement in time. Is the usual Leap-Frog advancement in time.
+#       +magneticRotation (Field B, Species species, double dt) = Update velocity applying magnetic rotation.
+#           Buneman (1973) rotation.
+#       +motionTreatment(Species species) = It takes the velocities array in the species.part_values atribute and average it with the velocities stored in vel_dic for the particular species.
+#           That is, to synchronize velocity with position.
+#	+Motion_Solver methods.
+#---------------------------------------------------------------------------------------------------------
+
+> Also, this subclass of Field was created.
+#---------------------------------------------------------------------------------------------------------
+Constant_Magnetic_Field(Inherits from Magnetic_Field):
+
+Definition = Constant Magnetic field impsoed by the user. Does not change through time. It works as a perpendicular field to the 2D dominion of the electric field and particular. Thus, field_dim = 1.
+Attributes:
+	+type (string) = "Electric - Constant".
+	+Magnetic_Field attributes.
+Methods:
+	+Magnetic_Field methods.
+#---------------------------------------------------------------------------------------------------------
+
+----
+
+
+2020_03_25.txt -PHD --scsi
+
+To test the simulation with magnetic and electric fields ativated, I want to run three simulations that would produce measurable results that I can test with the theory. For all these cases I will be running the simulation with the drift velocity but without the thermal component.
+
+1. E and B constant and perpendicular: check Larmor frequency, Larmor radius and Hall velocity. (Case 1).
+2. E = 0 and B with a gradient perpendicular to its direction: check velocity and the overall behavior of particles trying to eliminate the magnetic gradient. (Case 2).
+3. E varying in time \frac{dE}{dt} = cte) and B constant: Decomposition of velocity in its rotacional, Hall and "second Hall" components. Check those values. (Case 3).
+
+Case 1: I want to create a Hall velocity such that the particles moves dx/2 after one rotation period. Then v_d = 1.3996e5. For such velocity, with B = 2e-6, E = 0.27992 V/m.
+Case 2: To cope with the theoretical assumptions in the simulation, \epsilon = \rho\nabla B/B_{0} << 1. I fixed \epsilon = 1e-3. Thus, \nabla B = 1.2233e-10. With this, \Delta B = 6.11656e-10 accross one dy distance. With \nabla B this value, B = 2e-6\,T and all v_{initial} 3e5\,m/s, v_{d} = 7.8247\,m/s. I will put B = 2e-6 at y = 0 and vary from there downwards and upwards.
+Case 3: \epsilon = \frac{\frac{\frac{dE}{dt}}{E_{0}}}{\omega_{ce}} << 1. Let's suppose we have \epsilon = 1e-3. With this, an taking E_{0} = 0.27992 V/m, dE/dt = 9.84658e1 V/m/s which adds very little every time step taking into account the magnitude of E_DT and P_DT. Now, with this values, v_{p} = 5.0000e5. v_{d} could be calculated, but will change every time step, in the range 1.3996e5 <= v_{d} <= 1.8919e5.
+
+> For case 3 this was prepared:
+#---------------------------------------------------------------------------------------------------------
+#Time_Electric_Field(Electric_Field):
+#
+#Definition = Electric field dependent on time.
+#Attributes:
+#	+type (string) = "Electric field - Constant".
+#	+Electric_Field attributes.
+#Methods:
+#	+Electric_Field methods.
+#   +computeField(Species species, int p_step, int e_step = 0) = Recieves the steps in the simulation and computes the time from the start of the execution. Then, updates the field accordingly
+#           with this and any function imposed by the user inside of this method.
+#---------------------------------------------------------------------------------------------------------
+
+> Two of the three cases presented errors when executed. The error in both of the was that the number of tracked particles were less than num_tracked. That is happening because the number of injected particles is being less than the number of eliminated particles. However, the number of electrons is enough to keep the simulation running. So, the fix has to be: 1) Don't ask for num_tracked == expected for these cases or 2) Take random particles from the old particles when the amount of new particles is not enough. Question: A situtation like this, with less injected than eliminated, is unphysical and also unsustainable in the long term. Such, does it make sense to fix updateTrackers to make it account for a situation like this? Would not be better to fix the injection of particles for these three cases or rather eliminate that check point only for these three cases?
+
+----
+
+
+2020_03_29.txt -PHD --scsi
+
+> Ok, when doing the analysis of the case 'oscillation', I found a coefficient for the Fourier Transform of the motion of the electrons to be very high, with a frequency value of 700kHz. The theory indicates an electron plasma frequency of 754kHz; both numbers differ by an error of 7.7\%. This might be due to the non-ideal case represented in the simulation. In fact, to achieve such pronounced coefficient for the value of 700KHz I had to cut the number of steps to 200 steps. Until 1000 steps, for example, I could see still an important contribution in this frequency, but other coefficients start to appear as more preponderant. This is clearly because the initial condition starts to disappear and the electrons are further deviate from their 'theoretical' behavior of only oscillation around the marked protons. The graphical results are stored in the folder 'test_results'.
+
+> The function to compare with the 'potential wall' simulation is prepared. I will plot the results with the function tomorrow.
+
+----
+
+
+2020_04_02.txt -PHD --scsi
+
+> So, I have tested em_case1. The results are:
+In overall, the particles behave as expected. The protons mainly continue forward to the right boundary, with a little deflection in the expected direction due to the magnetic field. On the other side, electron are completely trapped in their circular motion, with a net motion downwards as expected according to the \vec{E}\times\vec{B} direction. Later on, I tried to fit the motion of the electrons to their theoretical trayectory and see if the some physical parameters are correctly predicted. Results:
+>> Larmor radius: Theoretical value: 0.853. Experimental value: 0.9411275 \pm 4e-7.
+>> Larmor frequency: Theoretical value: 3.51764e5. Experimental value: 3.51754981e5 \pm 0.002.
+>> Hall velocity: Theoretical value: 1.39960e5. Experimenta value: 1.39959997e5 \pm 0.02.
+The error produced by the fit is so small that the theoretical values fall outside of the error range, even though the values are close. This might indicate that the source of the difference among values is the simulation precision. The Larmor radius has a 10\% error difference, the Larmor frequency a 2e-3\% error, and the Hall velocity a 2e-6\% error.
+
+> Case 2:
+Without thinking too much about it, I chose a \delta B that was good to maintain the theoretical assumption but that produced a v_d = 7.8247. Being the total time of the simulation 1e-3s and the dx = 5m, the movement is not visually noticeable. However, the x and y positions are recorded with such precision, which made the fit process possible. Results:
+>> Larmor radius: Theoretical value: 0.853. Experimental value: 0.8491. Error: 0.5\%.
+>> Larmor frequency: Theoretical value: 3.51764e5. Experimental value: 3.51649e5. Error: 0.03\%.
+>> Velocity displacement: Theoretical value: 7.8247. Experimental value: 8. 
+NOTE: The covariance of the parameters in the fit could not be estimated, which in turn did not allow to get error values.
+
+----
+
+
+2020_04_03.txt -PHD --scsi
+
+> At least for now I do not understand the reason of the curve in v_d vs. y_0. The theoretical formula shows a dependency in the form of v_d \prop 1/B^{2} \prop 1/y^{2}, not \prop y^{2}.
+> Case 3:
+I cannot see the displacement in the -x direction. The created velocity should have a value of 139.95\,m/s, which would displace the electrons radii's around 0.14 at the end of the movement. Let's see if I can fit a movement like that and calculate such velocity. Results:
+>> Larmor radius: Theoretical value: 0.853. Experimental value: 1.03872. Error: 18\%.
+>> Larmor frequency: Theoretical value: 3.51764e5. Experimental value: 3.51291e5. Error: 0.01\%.
+>> Displacement velocity: Theoretical value: 139.96001. Experimental value: 139.78783. Error: 0.1\%.
+>> \frac{\dot{E}}{2B}: Theoretical value: 2.46162e7. Experimental value: 2.60166e8. Error: Not even the same order.
+Because the last value does not match, I want to make a second revision of this values the next time.
+
+----
+
+
+2020_04_06.txt -PHD --scsi
+
+> Case 3:
+The previous values were wrong, since the fit was not adjusting correctly to the path of the particles. This was happening because I deduced the function y(t) incorrectly.
+>> Larmor radius: Theoretical value: 0.853. Experimental value: 0.9415. Error: 9.5\%.
+>> Larmor frequency: Theoretical value: 3.51764e5. Experimental value: 3.51755e5. Error: 0.01\%.
+>> Displacement velocity: Theoretical value: 139.96001. Experimental value: 139.959. Error: 8e-4\%.
+>> \frac{\dot{E}}{2B}: Theoretical value: 2.46162e7. Experimental value: 2.46165e7. Error: 0.001\%.
+The parameters from the fit work with good level of precision.
+
+----
+
+
+2020_04_07.txt -PHD --scsi
+
+Rounding up the work of today:
+I was working in a new file called 'execution_times.py' inside 'plotters' folder. It is supposed to contain the graphs for analyzing the time performnce of the code.
+> I was plotting for different steps different numbers of cols. It is acceptable in the first row, and it is acceptable if the addtional imes printed from time to time are appended at the last columns. Otherwise, in this peculiar steps I will have a different enumeration.
+> So far the methods are not working because the args are not being read correctly.
+
+----
+
+
+2020_04_08.txt -PHD --scsi
+
+
+
+----
+
+
+2020_04_10.txt -PHD --scsi
+
+> Now I understand what was the intention of the potential_wall case. The idea was to fix a value of the potential and then see the exponential decreasing towards the other end of the dominion. Because of the exponential decrease, I should not have put a Dirichlet but a Neumann boundary in the other extreme. Possibly with that the values recorded would be much better, since with this artificial in the other end, the function fits decently well (although the parameters are really different than expected).
+
+----
+
+
+2020_04_15.txt -PHD --scsi
+
+> I have created a new folder in the SCSI deirectory called 'Sketches', where I will be storing all the files or pieces of code that are no longer necessary for the program or that they were written as tests for particular stages of the development of the program. If the pieces of codes are not files but only code, they will be stored in the file 'dashboard.py'.
+
+----
+
+
+2020_04_17.txt -PHD --scsi
+
+> Let's decribe the descisions taken:
+>> createDummBox to be completely reformed. Adding particles to every node-centered cell and at the end eliminating the particles inside the boundaries.
+>> location in outer_2D_rm will contain 2 copies of the nodes that belong to two boundaries at the same time (corners).
+>> Due to the previous decision, passing arguments that have to match the number of nodes in location have to report twice the values related to the corner nodes.
+>> Functions that want to make use of location and doesn't want the additional information of having two times the index of the corner nodes, need to use unique first.
+
+----
+
+
+2020_04_22.txt -PHD --scsi
+
+> I am continuing the work on createDummyBox. The function now will work very similar to loadSpeciesVTK: it creates an array of new particles (based on density, residuals and volume) that are going to be located in the cells around every node in location, and then, particles falling inside the boundary will be deleted. loadSpeciesVTK, rather than creating more particles than necessary and then deleting some of them, creates just the right amount of particles but afterwards takes care of putting them into the expected dominion. Comparing the two functions, both of them need to run over the array once to give the random positions to the particles (createDummyBox having more pareticles than loadSpeciesVTK); then, createDummyBox runs over the array once more to delete the unnecessary ones, whereas loadSpeciesVTK goes through the array two times but with less particles. The nature of the operations (deletion and change of values) should have the same order, so the difference lies in the proportion of new particles created unnecessarily by createDummyBox. Hence, loadSpeciesVTK is more efficient if the number of particles to be deleted is the same or more than the particles remaining. Thus, for loadSpeciesVTK, the 'delete method' is better, and for injecting particles into the mesh through rectangular boundaries, both methods are roughly the same, since the number of necessary and unnecessary particles are almost the same. Being more precise, for inner boundaries, unnecessary > necessary, so loadSpeciesVTK method is better, whereas for outer boundary, unnecessary < necessary, so delete method is better.
+
+----
+
+
+2020_05_05.txt -PHD --scsi
+
+> I verified that the methods in 'solver.py' and 'field.py' work as expected even if 'location' array in the boundaries has repeated values. The methods loop one more time for this ndoes, but no error comes from that. Also, I think it is more efficient to keep it like that than introduce an "unique" method in every one of these methods.
+> I fixed a little detail: in the first iteration of the main loop, the electric potential was being computed without 
+> Don't forget, 'poissonSolver_2D_rm_SORCA' only works with location from each boundary, not using locations from mesh, since for Capacity Matrix I change only 'boundaries[1].location', not 'locations'.
+
+----
+
+
+2020_05_07.txt -PHD --scsi
+
+> Something to take into account in the new way of doing the derivative in 'sovler.py': For an outer boundary, the corners of the boundary can only use Pade derivatives for both coordinates, whereas with inner boundaries is the opposite, in the corners we are able tu use normal derivatives in both directions. However I will keep Pade calculations in the corners of the inner boundaries just for simplicity of the code.
+> The TODO for tomorrow is to create the scatterFlux function, and include that in the mesh calculation inside motion, before the removing part of the particles. Then, Flux lost to the inner walls is stored, but also, the accumlated charge in the nodes (which can totally be stored through density of those nodes). I want to think about the contribution of the normal scatterDensity to the charge of the nodes in the satellite. Should I add that? override it with the flux?
+> Actually, for tomorrow I should focus more in the work with my sensei.
+
+----
+
+
+2020_05_11.txt -PHD --scsi
+
+> Since the code recognize the particles that crossed the boundaries as the ones that are inside (outside) the boundary in the actual step, particles that cross two times the boundaries, for example for corners in inner boundaries, are not detected. This is an error, but fixed it (at least as far as I can think of a solutin for it) would involve making the code much slower.
+
+----
+
+
+2020_05_15.txt -PHD --scsi
+
+> So, as it seems, numpy.where first calculates x adn y, and them do the extraction of that data depending on the condition. Because of that, is necessary that x and y can be calculated. Maybe numpy.add.at can be used. This is the part of the debugging I am in right now.
+
+----
+
+
+2020_05_18.txt -PHD --scsi
+
+
+
+----
+
+
+2020_05_20.txt -PHD --scsi
+
+> My last decission has been to continue on not creating a copy of the Species classes for every Species, since I already have old_system as the backup. Since I need data on previous position of the particles before crossing boundaries, and data on velocity at different times to create the average for synchronizing velocity with position, I will behandling thad on different was accross the involved functions, under the umbrella of the motion class, since this one is the one "responsible" for needing all this data, so it makes sense for the class to have all this attributes needed to handle the problems.
+> Many problems of the code has been solved, but now I am facing a new one: How to determine for the particles that have crossed into "Satellite dominion" through which wall they crossed. So far 2 ideas:
+1) Compute the trayectory slope of the particle, and compare it with the slope made between the particle's position and the nearest corner (this can be determined by the signs of (new-old) values for "x" and "y" components). If steeper, it crossed a horizontal wall; if shallower slope, a vertical one. 1.1) This can be done only for particles which have the possibility of have come from two walls. This latter criteria is easily carried out by finding which criteria of xmin<=pos_x<=xmax, ymin<=pos_y<=ymax is not followed by the old_pos position.
+2) For the particles with this possibility mentioned in 1.1), which are the ones causing the additonal cost of computation, a trade-off between accuracy and speed can be done where for these particles, instead of finding which wall they crossed, are distribuited in equal weights between both wall-cells, or are randomly assigned to one of the two cells. These cells are the ones creating the corner. This is based in the idea that the particles shouldn't move more than half a cell in each step.
+
+----
+
+
+2020_05_23.txt -PHD --scsi
+
+> Even though I new about it (xD) I forgot that for many built-in function sin numpy, the 
+
+----
+
+
+2020_06_02.txt -PHD --scsi
+
+> I did some calculations about the Debye Length, the acceleration created by a possible potential field of 200V in the satellite, and the amount of change in velocity and distance created because of it in protons and electrons. Taking that into account, the DX used was barely sufficient to keep the requirement of distance per step less than DX. Because of that I reduced both P_DT and E_DT by 5. I also reduce the dimensions of the Spacecraft to make it easier to the potential to converge to "physical values".
+
+----
+
+
+2020_06_03.txt -PHD --scsi
+
+> I added the folder 'sat_no_density_accumulation' to store the simulation ran yesterday. It was a simulation with all the common things from the current trial on a Satellite inner boundary and the effect of this in the electric field, but without having an accumulation of charges in the walls through time. The value 'accDensity' was restarted as 0 in each step.
+> I am trying to find why particle_tracker is not working.
+> Ok, now the code is working, not collapsing, but a negative potential is not being reached, so I will run a simulation with a bigger satellite to see if the size of the satellite mugh change the result due to the Debye length/size of satellite phenomena.
+
+----
+
+
+2020_06_08.txt -PHD --scsi
+
+> The simulation hasn't reached an stationary face, so I still cannot say whether the code is working or not (See '/home/jorge/Documents/PHD/Simulations/SCSI/tests_results/2020_06_05_acc_density.png'). In order to accelerate the process I will decrease the permitivity of the spacecraft. With that, I will obtain higher values of C and thus higher potentials in the Spacecraft for the same charge difference.
+
+----
+
+
+2020_06_09.txt -PHD --scsi
+
+> Radius of the Sun: 696340km.
+
+> Now I will include a modifier in the calculation of V = C^{-1}*Q in the form of V = cte*C^{-1}*Q in order to accelerate the process of reaching the stationary state. I will start from the step 16000 of the last execution, now called 'sat_density_accumulation_big' in results.
+
+----
+
+
+2020_06_25.txt -PHD --scsi
+
+> With -221V as fixed voltage at the walls of the Spacecraft, it seems the system does not reach an stationary state, as now protons are arriving at a far higher rate than electrons. That means that for this system the stationary voltage would be less.
+> Also, the domain used in the paper of 2014_cross_comparison... is twice bigger as mine.
+
+> Consult tomorrow with Suzuki-sensei about the SEUT-RA.
+
+----
+
+
+2020_06_26.txt -PHD --scsi
+
+> The method that I use to add the particles in the inner boundary, does it work? Does it create a flux of particles with the expected density? How this affect the flux of Photoelectrons being inected in the domain?
+> Change line 241 of innerBoundary to account for the different electric fields when applying rewind velocity. Also, should I take into account magnetic field?
+> Analyze well the treatment of the boundaries in terms of flux, density, etc.
+
+----
+
+
+2020_07_05.txt -PHD --scsi
+
+> Ok, currently I am trying to solve the problem wit Github. The stiuation si that Github does not allow to upload files bigger than 100MB, and discourages from having repositories bigger than 1GB, and is almost forbidden more than 5GB. With that in mind, basically my pushes were not done. So, I have created three levels of backup and 'public' project:
+1. Offline repository in my external hard drive. Is just a siple copy of the whole folder.
+2. Online repository in Google Drive under the account ja-garciap13@g.ecc.u-tokyo.ac.jp. That is also a copy of the whole folder.
+3. Github repository. That one has everything but the folder ./cases/results, since that includes the results and thus the biggest amount of files and the heaviest of them.
+
+> Then, when working with a new cse to run, I have to run ./to_results.sh and ./to_set_ups.
+> At the end of each session of work, do the normal push in Github and then a copy in Google Drive, telling everything to merge, replace everything in py_files and the first level folders, and skip the rest (/cases/results).
+
+----
+
+
+2020_07_07.txt -PHD --scsi
+
+> Two mistakes so far:
+>> current_n is not reflecting the total amount of particles in the array.
+>> Something weird inside the "Updating_trackers" of removeParticles.
+>> Conclussion, review arghwere in all the code.
+
+----
+
+
+2020_07_08.txt -PHD --scsi
+
+> I fixed the problem of the arghwere and it sees to have fixed part of the problems of the particle tracker but not all of them. By the way, from the particle tracker graph, it seems that the photoelectrons are being greatly influenced by the magnetic field, which is something really surprising.
+> From the following source I found the relative permittivity of the Indium Tin Oxide to be 3.3378. However do not forget that thera re several components, so probably this value is for a particular one, and is ok since this is only to have a rough estimate.
+Source: https://refractiveindex.info/?shelf=other&book=In2O3-SnO2&page=Konig
+
+> Something to study for tomorrow: it seems there is a significant portion of the electrons having huge velocities (more than 20 million m/s), even from the ts = 3 of the simulation. That translate to a motion which is defeinitely more than dx. Actually, interestingly, they are moving more than dx in the y component, not in the x component (from this sample at least). And, actually, all these electrons are really close to the top and bottom sides of the spacecraft and are about to collide with the walls of it. It seems that with the new permittivity the potential goes up really quickly, so that actually after ts = 3, V was already more than 1000, the highest value being 2773 in one of the corners (top-right one).
+
+----
+
+
+2020_07_13.txt -PHD --scsi
+
+Remote access:
+ssh -i ~/Documents/PHD/Simulations/Remote_Access/id_rsa_kashiwa -l jperez 157.82.247.48 (CUI)
+ssh -N -i ~/Documents/PHD/Simulations/Remote_Access/id_r_kashiwa -l jperez 157.82.247.48 -L 12345:localhost:3389 (GUI)
+M**n!1******6
+Remmina:
+jperez
+3xvsFHx6
+
+----
+
+
+
+2020_07_20.txt -PHD --scsi --paper
+
+> For electrons and protons of the solar wind, I use V_TH as the most probable speed because of the way I have written the Birdsall method for creating a Gaussian distribution. However, this is the most probable speed, not the average speed, and as such, for photoelectrons I should use the numpy.sqrt(8*k*T/pi/m) value for calculating density from flux of outcoming photoelectrons.
+
+> About the injection method that I use: I can consult {birdsall2004plasma} for quick reference or the other two for more information:
+
+@book{birdsall2004plasma,
+  title={Plasma physics via computer simulation},
+  author={Birdsall, Charles K and Langdon, A Bruce},
+  year={2004},
+  publisher={CRC press}
+}
+
+@article{abramowitz1999ia,
+  title={Ia.(1964), handbook of mathematical functions},
+  author={Abramowitz, M Stegun and Stegun, IA},
+  journal={Washington: National Bureau of Standards},
+  pages={923},
+  year={1999}
+}
+
+@incollection{hammersley1964general,
+  title={General principles of the monte carlo method},
+  author={Hammersley, John Michael and Handscomb, David Christopher},
+  booktitle={Monte Carlo Methods},
+  pages={50--75},
+  year={1964},
+  publisher={Springer}
+}
+
+I have the first and third in the computer, in Library.
+
+> I have updated PHE_N to a new PHE_N and PHE_N_WALL. The latter accounts for a density such that when multiplied by volume cells shows the number of particles created in the wall in E_DT, whereas the former represents the theoretical density. There was also another error. I had 'boundaries[1].location' instead of 'boundaries[1].left' in the first step of injection, and I was creating an incorrect ampung of elements in the arrays 'in_phe_n', 'in_drft_phe_vel', 'in_thermal_phe_vel'. Anyway I think the last thing of the wrong arrays did not create any error.
+> Now I will try to run two cases in the cluster. One with Photoelectrons and the other one without it.
+
+----
+
+
+2020_07_21.txt -PHD --scsi
+
+> I think I have spotted an error in the electric field. The electric field is ridiculously big in the top and bottom boundaries of the satellite, and the electric field doesn't even exist in the left and right boundaries. Trying to find a reason for it I found a problem (I think) in the calculation of derivatives in the boundaries. I don't understand why I made it like that (is really weird) so I will keep a copy of it in 'dasboard.py'.
+
+----
+
+
+2020_07_22.txt -PHD --scsi --paper
+
+> I am reading now the following paper:
+
+@article{miyake2009new,
+  title={New electromagnetic particle simulation code for the analysis of spacecraft-plasma interactions},
+  author={Miyake, Yohei and Usui, Hideyuki},
+  journal={Physics of Plasmas},
+  volume={16},
+  number={6},
+  pages={062904},
+  year={2009},
+  publisher={American Institute of Physics}
+}
+
+It has an implementation of a PIC code with plasma-spacecraft interacion, where the surface interacting is conductive. Also, the surface of the grid is scattered, having different points for \rho, \vec{E} and \vec{B}. The code also uses a method for charge distribution in the grid where charge conservation is prioritized through using the charge conservaion equation and calculation of current. I am studying the paper to understand the process they use to make the conductive surface an equipotential. 
+>> Curious thing: they use the technique of dummy boxes to inject particles into the dominion. The program tracks where the particles cross the surface when emitting particles from the satellite, thus having a more accurate depiction of charge accumulation than my code.
+>> Actually, the paper is really good because it gives a lot of details about how are the numerical procedure of the simulation. In particular, in Appendix, it has an useful explanation of the Capacity Matrix method. It also has the explanation on how to make the body surface conductive.
+
+> So, to create an equipotential surface, I have to follow the procedure below:
+1. Movement of particles, particle accumulation in the surface.
+2. Calculation of potential in the nodes of the body with this accumulated density. THis is done through the Matrix method, as I do now.
+3. The final conductive potential is calculated as shown in the paper, eq 7.
+4. The value is used, through the equation 5., to calculate the \delta q and thus \delta density of the step. This is the redistribution of the charge. Since the electrons are the ones that can move through the conductive surface, I will do \delta n = \delta q / c.QE. Accumulated densities and densities are updated. To review later: maybe is not necessary to update density at this step since it is not used before is updated again in scatter.
+5. Conductive potential is imposed on the nodes of the surface.
+6. Potential in the rest of the dominion is calculated.
+
+----
+
+
+2020_07_23.txt -PHD --scsi
+
+> Well, the last code that is running is producing really good results. It is  thermalizing fast, as expected physically (pike of big negative potential and then reduction of negative potential as protons start to accumulate in the surface) even though the final floating potential is still not expected (~-100 instead of -220). Temperature of protons is being around 5 times more than expected, and electrons just a little bit larger.
+> There was an error on scatter_1D, which was giving an strange behaviour to the right top corner comparing with the other corners of the satellite. Now all of them behave bad {:v}. Actually I am not that sure that the corners have problems. If from every point in space paint bullets are shot in every direction, will the corners be as painted as any other part of the haces of the square?
+
+> New class!:
+--------------------------------------------
+
+Electrostatic_2D_rm_sat_cond (Inherits from Electrostatic_2D_rm_sat):
+
+Definition = Same characteristics as Electrostatic_2D_rm_sat but the surface is conductive, as opposed to dielectric as in Electrostatic_2D_rm_sat.
+               For the class it is assumed that the satellite is stored as the second boundary in mesh.
+Attributes:
+	+type (string) = "Electric - Electrostatic_2D_rm_sat_cond".
+       +inv_capacity ([double,double]) = Inverse of the Capacity matrix for the nodes of the satellite.
+           The matrix is organized such that V = C^{-1}*q[location], with 'location' being the location of the nodes in the mesh in sorted order.
+       +capacity ([double,double]) = Capacity matrix for the nodes of the satellite. It is organized the same way as inv_caparcity.
+	+Electric_Field attributes.
+Methods:
+       +floating_potential([Species] species) = Computes the floating potential in a conductive surface, updating the involved nodes of the 'potential' array.
+           This is done through the Capacity matrix method.
+           WARNING: Here, first, the charges are accumuated as the particles impact or leave the surface. Then, the charges are redistributed to account for the
+               conductive surface. The change in densities in the surface is updated in 'Electron - Solar wind' class. In reality, all the electrons in the surface
+               can move, including, for example, photoelectrons that return to the surface. However, since this code does not track the movement of particles
+               in the surface, it is impossible to distingish among different types of electrons. Thus, changes are accumulated in the aforementioned class.
+	+Electrostatic_2D_rm_sat methods.
+
+--------------------------------------------
+
+----
+
+
+2020_07_27.txt -PHD --scsi
+
+Errors found today:
+> The volumes of the corners of the satellite were being caluclated incorrectly, when taking into account the corner in interaction with the dominion. The volume (to the outside) is three time larger than what I previously calculated.
+> In someplots.py I had an error or treating temp as a mask but having the values inside being ints. Thus 'temp' was being used as ind. Now THe graphs definetely look as expected.
+> I am still seeing whether the values of temperature are correctly or incorrectly calculated. When I was creating the 'scatterTemperature' function, I decided to use the root mean square value for which a '/3' is needed, though I am not using it since when I was running calculations without the satellite border I was getting the correct values of temperature without that. However, simulations on the cluster are, at the very beginning, having an initial wave of protons an electrons with 3 times more temperature than expected, but it seems they lower down afterwards. Maybe what is incorrect is the 'sampleIsotropicVelocity' function in 'Boundary/boundary.py'.
+> I found another error: I was not using as input of velocity in the flux calculation the magnitude of the incoming velocity, so, when particles where hitting into the right border, for example, that they do with x component negative, the flux was being recorded as negative.
+
+----
+
+
+2020_07_28.txt -PHD --scsi
+
+> Might it be worthy to study how much the results of the simulation change with a change of the value "#particles/cell"? There might be some numerical effect related with this value, a bit independent from the precission part of "the more particles per cell, the more precise". Something like particular interactions between particles that are enhanced or not by the ratio "#particles/cell".
+> Now, there was another error. In "loadSpeciesVTK" in "mesh.py", I was only loading the particles with the velocity coming from their temperature but not from the avg temperare in each node. This, while using the 4th type of initialization in my code, was producing an strange behaviour at the beginning of the simulation.
+
+----
+
+
+2020_07_30.txt -PHD --scsi
+
+> I have resumed in the work of the volumes in the corners and on the error of 'loadSpeciesVTK'. Both things are fixed. However, it ocurres to me that It would be useful to have for the nodes in the boundaries, as I have their corresponding volumes inside the dominion, also have what would be the 'total volume' of the node. In that way, when I use dummy boxes or create particles outside the boundaries, I can use this value directly or the difference between the two values to get the volume outside of dominion.
+> It might be a good idea as well see how are the results with Neumann boundaries.
+
+----
+
+
+2020_07_31.txt -PHD --scsi --meeting
+
+> THe maximum amount of Photoelectrons that can be produced by the current dimensions of the satellite, per step, is 3.31e9 particles ~ 663 macro particles.
+
+For the meeting of today, things to mention:
+> How things are still not working: floating potential does not fit , as well as the profile of it.
+> The wake created by protons and electrons in the nophe and phe simulations.
+> The low values of current collected.
+> The low values of density and high values of temperature. I could analize energy conservation.
+> More photoelectrons created per turn than expected (sometimes).
+> The oscillation of densities in the phe simulation.
+
+Meeting:
+
+> Re evaluate the boundary conditions for all the particles.
+> Change scale of the dominion remaining the rest of the parameters the same.
+> Cell resolution.
+> In the future might be good to consider non-uniform mesh. Start considering that in terms of the code.
+> Numerical instability or physical motion of particles or wave, the oscillation seen at pe. Consider the time step size.
+> Maybe the overshoot in the photoelectrons is produced by time step size.
+> Study why there are so many protons impacting the rearside of the satellite.
+
+Next meeting: August 28th. 6pm. Friday.
+
+
+----
+
+
+2020_08_03.txt -PHD --scsi
+
+>Debye length calculations:
+>> Solar wind electrons: 0.574 m.
+>> Photoelectrons: 0.0438 m.
+> Due to the value of the Debye length for electrons, I should use a dx of around 2cm in order to capture the non-neutrality behavior of the plasma close the spacecraft. That will cost me around 10x more cells and also around 10x more steps. TO reduce a little bit the burden of the simulation, I will reduce the number of particles. Ok, I could not do that due to the restriction of 50 particles per cell, that I actually reduced to 20 particles per cell.
+> In LASP and SPIS in paper "marchand2014cross" the albedo of Ion particles is 5%, whereas in the other 3 simulations of the paper the particle albedo is 0%. Why?
+> I think there is a horrible mistake in the 'applyParticleReflectiveBoundary' function both for inner and outer boundary, because I was updating the particles for the next step in the border. Thus, particles that are reflected in the same step, even though they were at different distances from the border, they start from the border. This might create a 'phenomenon' in the simulation that is not physical.
+> The plan for now is that there is a 'mix' boundary function that uses both Reflective and Open boundary functions. The function compares each particle with a random number and creates two lists of particles, one for Reflective (it has to be the first to be operated to avoid messing with the 'ind' of particles) and one for Open boundary. For Secondary Emission of particles, a wrap up function can be created that throws another random number and thus decide which particles that impacted produce secondary particles. It would be convenient to pass number of particles created per impacted particle position. Thus an 'inject' function can be used later in the loop when the rest of inject functions are used. One idea is to throw a random number at the beginning, for reflective vs. open, and then another one at the end for emission vs. no emission, or use the same random number and just evaluate against two different thresholds. I am not sure whether it is more convenient or possible the latter one.
+
+Process for tomorrow:
+1. Letting run a new simulation with the parameters that were already configured today.
+2. Do the rclone thing to update my code in Google Drive.
+3. Try to find why sometimes there are more photoelectrons being prduced than possible. Also, why the accumulation of protons in the rear part of the satellite.
+4. Learn about when particles are being absorbed or reflected by a surface.
+5. Not for tomorrow but do not forget start learning about DSMC.
+
+
+----
+
+
+2020_08_06.txt -PHD --scsi
+
+> {I don't know what I was thinking xD but} Obviously, the depletion in the numbers of proton density and electron density makes sense. For electrons, these are deflected due to the negative potential of the satellite. As for the protons, the satellite creates a wake behind it where the density of the protons is less than in the free stream, lowering the average. Same for the temperature. Energy is added to both populations, those increasing the temperature values. Actually, this is understandable for protons (as their gain velocity thanks to the potential) but for electrons, is still not too clear how the temperature of the population is augmented.
+> I think that the steady increase in accumulated density is a bit strange, since the flux is not constant at all. Is very fluctuating actually. If this were true, this might explain the accumulated density in the back part of the satellite. So I am doing tests for this part of the code. So far:
+> It seems that there is no discordance in the values of increased density per step comparing with the flux. That is, the increase in accumulated density, per step, goes about the same value as flux/v for the average flux. However, this was tested for protons. Electrons' flux is more fluctuating.
+
+----
+
+
+2020_08_09.txt -PHD --scsi
+
+> Now, following the study on how the flux and accumulated density are behaving, I also calculated the fulx density caused by one proton impacting the surface at 5e4 m/s, and the value is 8e-6, which then makes reasonable how such kind of numbers are achieved in th flux graphs in every step. In the graphs, flux density usually varies between around 5e-6 to around 1.5e-5.
+> For 41x41 cells and 3 species with 2e-4 array suze each one, 4.5GB of RAM used.
+
+----
+
+
+2020_08_11.txt -PHD --scsi
+
+> I found the error that was causing the abnormal collection of particles in the inner boudnary of the domain. When the 'for' for treating the different boundaries was being used, I deleted particles from the outer boundary, and then I was using the same indices for two arrays, the new updated array and the old one.
+> One ting that I could do is to really separate the updateParticle part of the simulation from the updateMesh part. Thence, move the scatterFlux to the updateMesh part. I can crate a system of updateParticle returning always something, in a form of dictionary, where I can use the key as a way of sending information between both functions.
+
+----
+
+
+2020_08_19.txt -PHD --scsi
+
+> About the yield of the secondary electrons: I plan to use the function shown in {marchand2014cross} for caculating the yield. Now, the function varies a lot between less than 1 electron produced per electron impact, to around 2.5 electrons per impact, depending on the energy and angle of impact of the incoming particle. Since the function would need o be calculated for each electron, an idea is to put the values of the function in a matrix, where the indices of the matrix are related through an inyective function with values of energy and angle of incidence. Thus, it is only necessary to call the particular position of the matrix. Rows will be energy and columns will be angle of incidence. To reduce computation time, I plan to use an approximation of the tan function to calculate the angle of incidence. Also, probably, I will calculate the angle of incidence directly in the 'applyParticleOpenBoundary' function. 
+>> The matrix will be stored in a folder called 'data', in a file called 'SEE_yield.dat'.
+>> The matrix, inside the program, will be stored as one of the attributes of the 'Secondary_Emission_Electron' class. In that order of ideas, the function that will calculate the yield and the actual number of particles being created pr impacting particle in each step, will be in the class as well, and will be called as a separate function in the 'main.py' file.
+>> An idea regarding these values stored in the matrix, is that, since the precission of the function is cut due to storing discrete values in the matrix, an idea for increasing precission if necessary or there is time, is to not equally space the energy values being used for the matrix, but to use values of energy that are closer between each other as the probability of finding electrons in those energies increases. In that way, probabbly the relationship between the row indices and the values of energy will be like an integrated gaussian, since most probably the temperature distribution close to the surface is somewhat maxwellian, for the incoming particles.
+> I Stored a plot of the SEE yield function in 'tests_results' folder.
+
+----
+
+
+2020_08_20.txt -PHD --scsi
+
+> I finished implementing the new code for the secondary electrons. For now it is executing in the cluster. Let's see what happens.
+
+----
+
+
+2020_08_22.txt -PHD --scsi
+
+> When calculating the flux applyParticleOpenBoundary, I am using the position located in time between n and n+1 where the particle crosses the border, and the velocity at n+1/2. Is the same for 'injectParticlesDummyBox'. For 'injectParticlesAtPositions' I am calculating flux with positions and particles both at step n.
+
+Results up to now:
+
+> With SEE+Phe: 
+
+> With Phe:
+>>  ~150V but I am not sure that it has reached a stationary.
+>> ~5e11 of net accumulated density at the surface.
+>> It is on 2200 steps and the slope of increase is still not 0.
+
+> Only SW.
+>> ~126V of floating potential.
+>> ~ -3.9e11 of net accumulated density at the surface.
+>> It reaches stationary for sure from 1300 onwards, and it does not change too much from around 800 steps.
+>> It is curious that this simulation doesn't fluctuate in q-diff and potential, not in stationary not in the transient part, as opposed to the cases with SEE or Phe, where there are always fluctuations of the numbers due to changes in the spatial distribution.
+
+
+
+----
+
+
+2020_08_24.txt -PHD --scsi
+
+> Well, a lot of errors have been spotted out during saturday, sunday and Monday. Now I have changed a little bit how photoelectrons and see are introduced into the dominion, ando how they are recorded in terms of outgoing flux.
+
+----
+
+
+2020_08_25.txt -PHD --scsi
+
+Results of the execution '2020_08_24_cluster_see_cond':
+> Steady floating potential: ~-25V.
+> Both see and phe exhibit a strong motion delineated by the magnetic field.
+> Protons: 2.78e-4.
+> Electrons (SW): -2.6e-3.
+> PHE: Collected current: -4.3e-4. Emitted current: 8e-4. Percentage collected: 53.75%.
+> SEE: Collected current: -3.2e-5. Emitted current: 8.25e-5. Percentage collected: 38.8%.
+
+----
+
+
+2020_08_26.txt -PHD --scsi
+
+The results of the simulation with only PHE are:
+> Potential: ~ -31V and it reaches this steady value at around 400 steps.
+> The distribution of the potential looks very similar to the one of yesterday, PHE+SEE.
+> q-diff: -9e10.
+Currents:
+> Electrons (SW): -2.5mA.
+> Protons (SW): 0.28mA.
+> PHE: Collected current: -0.4mA. Emitted current: 0.8mA.
+
+> I think I committed a mistake by using PHE_N_WALL instead of PHE_N. First, the ration among those two is basically the factor that my output values of current need to reach the proper value 10mAm^{-2}.
+> May it be that I haven't account for the fact that I am modelling 2D but I am taking a 3D value of velocity?
+> I found a huge error that I have kept unattended until now. Before I thought the injection of particles nto the domain was correct, in terms of the velocity distribution. However, that was far from the truth. It turns out that the birdsall method produces a component of the thermal velocity in the Maxwellian distribution, such that the overall velocity (when using Birdsall method 3 times) produces a Maxwellian distribution. Being that the case, I had to ue Bridsall method two times, for x and y components.
+
+----
+
+
+2020_08_27.txt -PHD --scsi
+
+> I already took into account the fact that for temperature calculation, from the average, I have to use the V_{rms} value and also take into account that the simulation is in 2D. Actually, this seems to fit the discrepancy between the expected values and what is optained as results. So yeap, the issue of before that I was expecting that computation from v to T to be different from what I was doing, is already solved! {:D}.
+> So, right now the photoelectron current density being produced is one half of what is supposed to be. Also, the SEE outgoing flux looks very low as well, comparing with the values at the papers.
+> The incoming flux of protons is also half of what it is in the papers.
+> The incoming flux of electrons is between 3-4mA as opposed to 8.61mA.
+> The incoming flux of SEE is 0.08mA, whereas the outgoing flux is 0.14mA (~57% recollection).
+
+----
+
+
+2020_08_28.txt -PHD --scsi --meeting
+
+> If I calculate the amount of particles produced as photoelectrons by means of a value of velocity and the expected value of flux, I should calculate the average velocity that the photoelectrons coming out of the wall, in a MB distribution, will have, in the component perpendicular to the wall. That value came to be PHE_V_TH_MP/sqrt{\pi}. When seeing PHE_N = PHE_FLUX/(-QE)/PHE_V_TH_AVG and the new PHE_N as PHE_FLUX/(QE)/(PHE_V_TH_MP/numpy.sqrt(numpy.pi)), the latter is 1.99 periodic bigger thant the last one. This might be the factor that I was missing. I will change it in constants.
+>> Also, I was wondering again about the value of PHE_N not depending on E_DT. So far I think this is necessary to create the correct outgoing flux. But then, the same amount of particlesbeing created each step regardless of the time interval between steps? So, for different E_DT, for a fixed dt, there will be more particles being injected. I think that the logic balances out like this: E_DT smaller, more particles injected in a fixed dt, but every step is smaller, so the particles move less, and thus the flux, calculated as the number of particles crossing a boundary at each step, will remain kind of the same.
+
+Topics for the meeting:
+
+> Mentioning the progress of the last month:
+>> No changes in spatial parameters have been implemented due to the constraints of the computational power. Temporal scale was reduced by 10 and no changes were noticed.
+>> For spotting the scale of change of the potential barrier in front of the satellite, a mesh dx of the same order of PHE and SEE should be used. That is, around 3cm. So far it is being used 6 times that. The potential barrer is appearing, but probably the effect of it are not affect as much as they should, the particles. In comparison, in {guillemant2013simulation} they use 5cm and 2cm.
+>> About that, the necessary amount of computational power would be around 250GB (around 8 times more than now).
+>> So, thinking about a non-uniform mesh.
+>> I considerd cutting the domain by half, but since a magnetic field is being implemented, there is no symmetry in the radial direction. About that, the papers implement the magnetic field as radial towards the sun, as opposed to me that I was considering it perpendicular to the simualtion 2D domain. Although it does affect the distribution of particles, mainly PHE and SEE, it seems it does not affect too much the floating potential, as mentioned in those papers, since at the end the results between my code and their simulations are not that different.
+>> Phe gyroradius: 2.92m.
+>> SEE gyroradius: 2.3m.
+>> For the behavior of particles in the border, according to a 1994 book by Bird, there is no accepted way of computing the behavior of impacting particles into satellite surfaces, and is still unclear theoretically. In the codes compared in the paper {marchand2014cross}, 2 use 5% albedo and 3 use 0%, so I implemented that.
+>> I am using the formula used in SPIS for calculating the yield of SEE due to incoming electron angle and energy.
+>> I found errors in injecting PHE into the domain and applying inner boundary conditions, which was leading to the protons impacting in the rear part of the satellite.
+>> I found the error of not injecting particles with a MB distribution. That also fixed the error that I had from some months ago. I was not understanding why the theoretical expected formula for calculating temperature was not working.
+>> Now I am fully applying MB and also taking into account that is 2D, not 3D, although the temperatures are being computed as it were a 3D simulation.
+>> There were also erros in the graphs. Now they are clearer to read as well.
+>> Newest results. 
+>>> Errors in velocity of SW electrons (I think I know why now. They cancel each other when calculating average veocity at nodes. On the other hand, it is well reflected in the temperature values. If the velocity distribution was incorrect, the temperature values would be bad as well).
+>>> Errors in injection of SEE (lower than expected).
+>> Check Potential errors when reducing mesh size.
+
+New directions:
+>> Non-uniform mesh.
+>> Check webpage of supercomputer UT center. Check rules, requirements and specifications of the cluster. Kojima-san uses the supercomputer.
+>> AMR and PIC. Multigrid and PIC. Start doing research on that.
+>> Maybe consider a litle bit more the interaction between the surface in the case of being close to the Sun, and the imapcting plasma. Parametric study of the surface of the Satellite. Maybe there is some room for contribution to science in that area.
+>> Look up for conferences and possibility of presenting. ISTS Deadline of abstract submission is for the end of November.
+>> Start considering the next steps of research and considering originality.
+
+Next meeting: 10am on September 25th.
+
+----
+
+
+2020_09_01.txt -PHD --scsi
+
+> For if at some point is necessary, I can reduce the amount of data transmitted from 'applyParticleOpenBoundary' to 'see_yield' by calculating the angle not in the former funcion but in the latter, and getting the information of the angle from the two components of velocity.
+> Definitely, the code is reaching an stationary state almost at 500 steps, and surely developed at 2000 steps. There are some interesting oscillations in the voltage at the stationary state. It seems they have a define periodicity and it might be oscillations with frequencies of different orders of magnitude.
+> Gladly, I spotted the error that was causing too few SEE being produced at each step. There were many problems inside the 'see_yield.py' file. Not using the right units for energy, not converting from theta to cosine of theta, not making a matrix with a good range, resulting in many electrons falling outside the analyzed range, etc. For the record: Some really fast electrons have velocities of around 8e6 on one or to of its components, with result total velocity values of around 11e6. As far as they are not the most common type of electron, but rather following the probability of the MB distribution, everything is ok.
+> Now I am running a new simulation '2020_09_01_cluster_see_cond' with the errors fixed. Let's see what happens.
+
+----
+
+
+2020_09_02.txt -PHD --scsi
+
+> The code was not showing the errors in 'log.txt' when an actual error ocurred during execution. I solved the problem today.
+> I definetely have to extend the domain in the rear part. There is no "flattening" in that electric potential when reaching the border.
+> The average of SEE being produced, per impacting electron, is 1.7. I stored the graph in 'testresults' folder with name "SEE_per_SW.png".
+
+----
+
+
+2020_09_03.txt -PHD --scsi
+
+> It seems there is a problem with the counting of photoelectrons produced, being reflected in the graphs that I make with the 'somePlots.py' file. In particular, in average, the number of particles per cell is between 4-6, which probably might cause statistical fluctuations that are not physical. Actually, that is, if I do not take into account the nodes at the border of the satellite. If I do, the average of particles per cell for PHE goes up to ~26 and and SEE between 6-7.
+> With the average temperature being lower than expected I do not mind it anymore. Both secondary electrons have the correct temprature near the boundary, but then the acceleration caused by the electric field affects greatly the velocities thus changing the temperature.
+> The incoming current from SEE (-0.4mA) population is one tenth of the current created by imapcting electrons (-3-4mA). The outgoing current is 0.625mA.
+
+----
+
+
+2020_09_04.txt -PHD --scsi
+
+> Continuing with {korkut2015development}:
+>> The code uses 3 different refined meshes for different parts of the program. One for the DSMC, one for the E-field and PIC, and one for visualization. He implements the different meshes as instances of the same class, so he mentioned that actually it was quite easy to keep track of the different meshes.
+>> The criteria used for the meshes are: DSMC: Cell size less or equal than mean free path, and less than 80 particles per cell; PIC: Cell size less than Debye length and particles less than 500; Visualization: No particular criterion so he used that this cells should be coarser than the cells of the DSMC mesh, also less than 250 particles per cell.
+
+> Reading from {forest2001new}:
+>> Being this paper the first one mentioning SPIS, I am surprised they do not clarify some aspects of the implementation of the code in terms of the numerical methods. They used 3D unstructured mesh, which allows for a better gemoetrical description of objects inside the mesh. However, they also mention that a 3D cartesian grid is used with finite difference Gauss-seidel/Chebyshev method for the Poisson Solver. I guess they used different meshes at different moments of the simulation. Leap-Frog is used for advancing the particles, and a Capacity-Metrox method is applied to handle the floating potential of the spacecraft.
+
+----
+
+
+2020_09_14.txt -PHD --scsi
+
+> I have started writing a latex document in the folder 'Program_Structure' describing how I will implement the NGs mesh. I hope to use it as a guide throughout the process of implementation. I was traying to understand what would be the advantages or disadvantages of using a quadtree style of storing information for my mesh, instead of my idea of indexing, and I still do not find the advantage of it.
+
+----
+
+
+2020_09_16.txt -PHD --scsi
+
+> The function 'poissonSolver_2D_rm_SORCA(mesh, pot, rhs, ind_pot, err = 1e-3, step_limit = 1000)' can work without problem regarding the new changes of NGs. I just have to provide correcly the parameters.
+> Check note on line 220 on 'field.py': 
+    #NOTE: Am I calculating floating potential twice because of "super()" use?
+
+----
+
+
+2020_09_19.txt -PHD --scsi
+
+> The whole thing of indexing is a mess for later on passing information to chilren nests. I am thinking right now in specifically rhs for potentials.
+
+----
+
+
+2020_09_20.txt -PHD --scsi
+
+> I worked on 'Mesh_recursive', clarifying the scope of it, creating '__init__', 'flatIndexing' and 'orderedIndexing'. Now I think for tomorrow I should try to do the method in solver again, and see if I need other functions to be defined in other classes to carry out that method.
+> I should really think on how to test all the new functions.
+
+----
+
+
+2020_09_22.txt -PHD --scsi
+
+
+
+----
+
+
+2020_09_24.txt -PHD --scsi
+
+> Something to really take into acccount for the implementation of all these new functions: many of them need to work seamlessly with numpy arrays, i.e. they need to work element-wise.
+> Do not look track of your work. I will try to finish 'capacity_Inv_Matrix_asym'. After that I need to check whether all the functions created so far work with numpy arrays.
+> I found an error in 'capacity_Inv_Matrix': I was not resetting potential to zero at every node after calculating the potential for a node. {LOOOOl}. I will run a simulation that will check that.
+
+----
+
+
+2020_09_28.txt -PHD --scsi
+
+> I ran the profiler on the version 2020_09_24 of the code, with the setup in 'constants.py' for my pc, and it registered 200MB. And in the pc of the laboratory... is 400MB (?).
+
+----
+
+
+2020_09_29.txt -PHD --scsi
+
+> Ok, given the values of loew RAM consumption that I obtained from yesterday, it makes sense that I step down for a little from the work on the multigrid and first try to see whether is possible to run the simulation with smaller dx. For this aim I created '2020_09_29_see_cond_smallCells' which is a copy of '2020_09_24_cluster_see_cond' with new 'constants.py' to try the poisson solver under smaller dx.
+> To keep track of the other work: Right now I am kind of working in parallel between pic.py and mesh.py trying to get the functions necessary to write the function 'capacity_Inv_Matrix_asym'. I will try to maintain this kind o workflow. 1. Try to go through all the steps of the code in chronological order and solve all things necessary for that. It is really important in this step that I state clearly the behavior of the functions, as many differnet parts of the program might be calling the same function. 2. Then Working on the undone classes/functions. 3. Try to keep in general the guidelines organized so far in terms of this MR step, and state clearly the decisions in these notes and maybe other documents.
+> When doing big changes like this, for the next time, I think is better to: 1. Make a safe backup (even though the folders at set_ups might be the same, just for ease of mind). 2. Work on a copy of the files that are to be modified, and then replace the new files with the old ones at the very end of the change.
+
+> In 'poissonSolver_2D_rm_SORCA' I changed the definition of 'norm' a.k.a. the error. It was being calculated as the L2-norm of a function that, per index, computes the difference between the LHS and RHS of the Poisson equation. This, however, is calcualting the error as an absolute value, and I prefer (and I think is more efficient) to use as a parameter for stopping the solver when the error is a certain fraction of the expected values of potential. Thus, I am doing 'norm /= numpy.max(numpy.abs(n_pot))'. Right now 'err' is 1e-4.
+> I also changed the definition of flux in '2020_09_29_...' folders, and I will try how the simulation goes in the cluster.
+
+----
+
+
+2020_09_30.txt -PHD --scsi
+
+> I am aaaaalmost done with 'capacity_Inv_Matrix_asym'. I need to take into account the inclusion of the borders in the field solver when the border is a satellite. I think I can make a flag 'border' for the 'computeField' function, and another one for 'getIndexCalculation' and then in the latter function choose the correct indices. Also it is important to think whether I am calling the solver with the border flar or not.
+
+----
+
+
+2020_10_03.txt -PHD --scsi
+
+> Ok, I finished the part of creating the capacity Matrix. Now I will work on load and saveVTK, and the different initial conditions methods.
+> If I call loadSpeciesVTK from recursive to use the parent's function, and then inside it it calls getPosition, it is callent parent's getPosition or child's getPosition?
+> The 'vtkOrdering' and 'inversteVTKOrdering' methods work without problem by just calling the parent's function, but it only deals with rectangular meshes and without recursion, and passing the array truncated up to the current mesh only. I have not created yet the methods for recursion since I might change the approach for linking with VTK now.
+
+----
+
+
+2020_10_05.txt -PHD --scsi
+
+> I created a much needed function in Mesh called 'checkPositionInMesh' which tells whether the positions received as parameters lie within the boundaries of the mesh.
+> I also built the base for getIndex by creating 'executeFunctionByMeshes', by making the blueprint of 'sortPositionByMeshes' and by doing the same with 'sortIndexByMeshes', although the last one might not be necessary. getIndex and getPosition will both be written in the actual classes, not in the abstract class of 'Mesh_recursive'.
+
+----
+
+
+2020_10_06.txt -PHD --scsi
+
+> Probably there will be a problem with getIndex, since I am passing as a parameter an array of positions but then what I am returning is a list of arrays in a totally different order.
+
+----
+
+
+2020_10_13.txt -PHD --scsi
+
+> Definetely, a change in boundary needs to be done to accoun for the the possibilities of boundaries that arise with the inclusion of NGs.
+>> We can catagorize the boundaries accrding to the type of objected attached to it, whether is no object (space), or different materials, accounting for components of the satellite, conductive or non-conductive differences, etc.
+>> In that sense, boundaries attached to object can be inner or outer boundaries. Outer boundaries can be just sections of the total of the outer boundary that surrounds the mesh. However, for inner boundaries, although in the future there will be inner boundaries in sections, for now, since we are only taking into account the satellite, all the inner boundary is only the satellite. In that sense, the object that exists now I can continue using it. Even if the satellie is at the border of the outer boundary of the mesh, where simply there is a region that belongs to the outer boundary and the inner boundary at the same time.
+
+> The sorting of the indexes in fluxind will simply be all the indices throughout all the meshes that include some boundary with the satellite, organized with the 'Flat indexation rule'. I will include all the nodes, even though the same position is repeated through different meshes. Also, I will treat 'location_indexes_inv' thorughout the main loop of the program with an enumeration that relates fluxind with the arrays of fluxes, including all the meshes in general, a.k.a., with the arrays as stored in Species.
+
+> Now I finished the 'scatter_1D' function along with 'scatter_1D_aux', but for both I need to create more things in the classes of 'Mesh' and possibly 'Boundary'. I should resort to these functions and the ones created so far in this new step to see what else I am missing in the base classes: 'Mesh', 'Boundary'.
+> For now I will finish the rest of the functions in PIC to have a clearer picture of the things needed for the rest of the classes.
+
+----
+
+
+2020_10_14.txt -PHD --scsi
+
+> Maybe is a good idea to plan how to tackle all the different requirements that I am imposing over mesh, in the sense that maybe an approach like a new 'Interface' for mesh or a set of attributes together, maybe work more organized than just having a list of attributes in every Mesh. This, regarding all the new things to be implemented in Mesh regarding mesh-satellite aspect.
+
+----
+
+
+2020_10_16.txt -PHD --scsi
+
+> Apart from some minor changes already marked with TODOs, the files 'motion.py', 'fied.py', 'pic.py' and 'solver.py', 'species.py' are complete on recursion implementation.
+> Files left: mesh, Boundaries files, main, output, plotters files.
+
+NOTE: I changed Recursive_Field from being child of Object to being child of Field, contrary to my previous decisions in this matter. I do not see a problem in the sense that everytime that I want to use one of the functions that lie on the other branch of the classes parenthood, I should specify that with super. However, I am even considering changing he idea of having first super and then the other parent, to the opposite, i.e. I would need to be explicit when I want to use recursive resources, not when I want to access mesh, field, etc. resources.
+
+----
+
+
+2020_10_20.txt -PHD --scsi
+
+> During all the implementation of this new step in the code, I have encountered the dilemma of 'performance vs. memory'. Just to mention one clear example. In the recursive mesh, each mesh has boundaries, and some of this boundaries are in contact with the satellite. If I want to create an array that stores the information of the nodes in the mesh, I can do it on execution time by looping through the boundaries, selecting the ones 'material = satellite', append all the results and then sorting them. However, looping and and sorting each time is not time efficient, so I am basically duplicating information by creating location_sat in the mesh classes. Now, it is also convenient to store all the ndoes in contact with the satellite throughout the meshes. For that, I can, again, create a function that builds the array on time, by walking the tree and annexing the information of each mesh into a big arrray, or do it only once and store all the information in the root of the tree as well, in a sort of copy of the information that is scattered throughout the meshes. Since the waling through the tree so far does not imply too many objects, and the annexation and conversion of local-index to global-index is not time-consuming, I would rather create a function that does that. However, taking into account that such function would be executing multiple times throughout the time loop, I think it is worthy to uplicate the information in the root and just call the big array each time. As it can be seen in this example, and prioritazing time over memory.
+
+> For now, I have to decide how to create the dominion, including the meshes, with their tree-like relatinship, each one with their boundaries. After that decision, I move on to create the __init__ function for 'Mesh_2D_rm_sat_recursive', then 'Mesh_2D_rm_recursive'. I could create a new mesh that can handle an inwards corner in its dominion, for now I think is more of a waste of time being that is better to continue on creating this NGs and test it and see the new results. After the __init__, I follow on creating the rest of the functions for mesh and finishing the organization of the file. Right at the end of that is when I will tackle the problem of VTK I/O.
+>> The way of creating the meshes has to be clever. For now, I have decided on somehow provide the parameters of the meshes and boundaries in a file, a sort of "dominion_setup.py' or 'txt'. If it will be a python file, a txt file, I do not know. The important thing is that it is user readable, easy to modify, and does not deviate too much from the working methodoloy of the simulation so far. It would be nice if it is somehow generalizable to different types of meshes, but actually I should not put too much emphasis on this, since it is very probable that at some point in the future I will change the decision-making process for meshes, from manual, to something created in a software.
+
+
+----
+
+
+2020_10_21.txt -PHD --scsi
+
+> With the configuration of the mesh for '2020_09_29_cluster_see_cond_smallCells', which means dx=0.025, 120 nodes in a surface side of the satellite, and 768000 nodes in total in the domain. The execution time of the simulation is as follows:
+>> 1 Poission solver procedure: 13200<=x<=13800s->3.6<=x<=3.9hrs.
+>> Capacity Matrix calculation: 19.2 days. This is, if the x4 symmetry is considered. Actually, since I moved the satellite out of the center of the dominion, this is symmetry is not held anymore.
+
+> Ok, I am going to create a file that has the necessary information for loading all the Boundary, Mesh, PIC and Field objects, and I will create a function that handles all of that.
+>> The function is going to be recursive, and it will create the Mesh object, the PIC and Field objects for it, it will link them, it will recollect the information of the children of each and link them, and then return those Mesh, PIC and Field objects created.
+>> The file will be organized in sections enclosed like:
+{
+...
+}
+and inside it will contain in a Dictionary-like fashion the information of the Mesh class, the Mesh parameters, the Boundaries for the mesh, the PIC class and parameters, the Field class and parameters. I think actually in that order.
+>> The parent-child relationships will be extracted from the ID of the mesh in each '{}' section, and from the fact that the sections will be organized in the same order as the meshes (flat-indexation rule).
+>> 'System' class will store only the root of each type of class, and 'Motion_Solver' will store only the root of PIC class.
+>> Working right now on the plotting of Debye_length. I have to decide on whether not include the surface nodes or do all the things that I do with acc_density and stuff to include it properly.
+
+----
+
+
+2020_10_23.txt -PHD --scsi
+
+> Following the calculations of two days ago, if each solution of the Poisson solver takes around 3.8 hours, for the Capacity Matrix, I guess this value would be lower for the "in simulation" solutions at each step. Let's say it is around 3 hours each. Then, it takes around 1500 steps to have a good stabilization of the values in the domain. With that, a simulation without the capacity matrix part would be executed in approximately 180 days.
+> The workstation that I work with has processors of 3.6GHz frequency, as opposed to mine, 2.5GHz. In the supercomputers the frequencies are 2.7GHz (OakBridge), 1.4GHz (Oakforest) and 2.1GHz (ReedBush).
+> I should look up for a precompiled version of Poisson Solver that could be faster. Bi-CGSTAB method.
+
+----
+
+
+2020_11_02.txt -PHD --scsi
+
+> To make the plots that I need for the abstract, I apply first the "Extract Time Steps" and then "Temporal Statistics". 
+> Actually, doing this for the first time showed me that several properties exhibit clearer distributions. For example, it is easily seen the temperature drop of Solar wind electrons close to the satellite, and the increase of protons temperature in the wake. Other interesting distributions are the density of PHE and SEE.
+> While working in the abstract I remembered the problem of the outer boundaries possibly affecting the ptential in the wake. Before, I was not changing the size of the dominion because I though I did not have RAM power to process that. Now that I have, I have made a bigger domain, described in the setup folder '2020_11_02_cluster_see_cond', and put that simulation to run in the laboratory pc.
+
+----
+
+
+2020_11_03.txt -PHD --scsi
+
+> Continuing on the initialization of the meshes:
+>> I created the folder ".../SCSI/domains", which will store the files of the different domains in the program, each domain a new file. The files should have the date of creation in their names and should include a header in comments with a human-readable explanation of the domain. Possibly, each domain will have a sketch drawing of it, so the location of this image can also be mentioned.
+>> The domain file will follow the ideas mentioned on "2020_10_21". Updating and following them:
+Rules: 
+>> mesh-pic-field objects for the same mesh are group together.
+>> Each group begins with a '{' line and ends with a '}' line.
+>> Inside, the structure is:
+{
+	mesh = [name of the class]
+	{
+		different parameters necessary to initialize this particular mesh, each parameter a new line, with a [key] = [value] structure
+		when the parameters is another object or something created after the reading, it has a particular key and value is '', example:
+		children = []
+		the order of parameters is the order expected by the __init__ function.
+		the [key] = [value] structure is done to make the domain files readable and thus easy to edit
+		for boundaries:
+		boundaries = ['boundary_0',..., 'boundary_n']
+		If the Mesh class does need to receive boundaries as args:
+		boundaries = []
+	...
+	}
+	boundary_i = [name of class]
+	{	
+	...
+	}
+	process repeated for each boundary
+	pic = [pic class]
+	{
+		mesh = ''
+		same thing as mesh after this
+	}
+	field = [field class]
+	{
+		pic = ''
+		same style as pic and mesh
+	}
+}
+{
+	Same process, new mesh. The meshes are listed with the 'flat indexation rule'.
+}
+
+> Saving the class as a variable, let's say var, and then doing var() as a way of creating an object, works.
+
+----
+
+
+2020_11_04.txt -PHD --scsi
+
+
+
+----
+
+
+2020_11_05.txt -PHD --scsi
+
+> The file 'mesh_setup.py' is finished, including the two functions needed for reading and initializing the whole mesh system.
+> The mesh that will be the first with Nested Grids is written in the file './domains/2020_11_05_MR_1.txt', and an sketch of its visual properties is stored in './domains/2020_11_05_MR_1.txt'.
+> [Include approximation on how much will be the increase of RAM and possibly execution time]
+> I have finished creating the file. Something important:
+
+NOTE: Some simple math operations for calculating indexes, like this one: (13.2-5.0)/0.04 started haing inaccuracies such that when convert to integer, the indexes is not correct. I have to be careful about this.
+
+----
+
+
+2020_11_06.txt -PHD --scsi
+
+> I need to check and include the things necessary to have as attributes in mesh when the mesh is the root. At least it includes the arrays of satellites nodes in the whole dominion, and the 'volumes' array. Since the root is the last mesh created, all of this can be initialized in the constuctor of 'Mesh' class.
+> I need to add for every Boundary the attributes 'location', 'areas' 'and 'directions'. Then, I need to add to all the meshes created until now the initialization of these attributes for the Boundaries, and also create 'location_sat', area_sat' and 'direction_sat'.
+> I will include an attrbute in Boundary called 'material' that indicate which object the boundary is having contact with. All the possible 'material' variables are strings and decided by the user. So far, 'satellite' and 'space'.
+
+> I just had this discussion: I have the attribute 'volumes' in mesh. If I make a 'overall_volumes' for the root mesh, I will need to modify the name of the attribute in all the functions that use volumes considering that there is only one mesh (no recursion). That sounds a little bit counterintuitive considering that the functions are expected to be blind to the particular features of each mesh (including whether there is recursion or not). On the other hand, making the attribute 'volumes' change to include all the children meshes, only for root, but maintaining 'volumes' for the rest of the meshes as an attribute of only the current mesh, sounds bad programming practice, inconsistent. On the other hand, I think I am not using 'volumes' in any other moment than when I need all the volumes from root. Being that the case, I will keep the inconsistency for now and see how the program continues to grow to take a better inforrmed decision later.
+
+> Ok, I think I got a good idea on how to fix the problem of the scatter_1D when the nodes from children meshes are corners: For those nodes, I will have them repeated (2D two times, 3D three times) in location_sat, area_sat, and direction_sat, but in direction_sat, those nodes will have different directions, to account for the two possibilities of contributions from these nodes. Then, the value accumulated in that mesh, will be divided equally in 2 or 3 parts, and assigned to each direction. I have to think more carefully about the area, since the corner for inner_boundaries manages 3/4 of a normal volume, and the normal area of any other node, but also, that value will be repeated in the array, so how I treat it will also be important.
+
+----
+
+
+2020_11_10.txt -PHD --scsi
+
+> I have to define location_sat and area_sat for every mesh as an attribute of mesh, and location, directions and areas as attributtes of the boundaries.
+
+----
+
+
+2020_11_13.txt -PHD --scsi
+
+> For the 'Field' class, I am not creating a big array with the field values all the meshes, but rather an array per mesh. Why did I choose this instead of making a big array for the root, as in 'volumes' with 'Mesh'? The thing is that in this case, the values of the array will be updating in every timestep. Now, since my 'computeField' is based on running the Poisson Solver for each mesh individually, I need to have the Potential as different arrays for the different meshes. Being each individual array necessary, I would basically need to update the bigger array in the root on each time step. Actually, now that I think about it, that means one update per timestep if I have one big array as well, whereas with the way I am doing it right now, I have to run the update (or rather the creation of a global array) with every 'fieldAtParticles' execution, which if I am not wrong, is one per Species. I might want to make one big array later.
+> Do I want field per mesh or a whole mesh in root? I am still deciding that, lol.
+
+----
+
+
+2020_11_16.txt -PHD --scsi
+
+Problems:
+1. Floating potential needs to be recursive, because it is necessary to assing the potential values in each children field.
+2. I will keep arrays of potential and field for each mesh.
+3. I will calculate potential for each mesh as if the other meshes did not exist.
+4. I will create a function that identifies which indices among all the meshes refer to the same point in space. I need that for: 1. Only choosing out of a set of this indices, non-repeating ones, and, on the inverse, indentify for each node, which other nodes share the same location.
+
+NOTE: With this I can fix 'capacity_Inv_Matrix_asym'.
+
+> I finished 'capacity_Inv_matrix_asym', now I can continue with 'floating_potential'.
+
+
+----
+
+
+2020_11_17.txt -PHD --scsi
+
+> Something to take into account: 'inv_vapacity' and 'capacity' are two attributes that are only needed in the root mesh. Because of that, everytime I create a new 'Field' class that is also recursive, I have to be careful at initialization, so to not create innecessary matrices.
+
+Problems: 
+1. 'sortIndexByMeshes' returns overall index values or indexes for each mesh?
+2. How to make the 'assignValuesToArray_recursive' as useful as the normal numpy assignment.
+
+> I have to fix '2020_11_05_MR_1.txt'. Fixed.
+> Ok, as far as I can see, I finish mesh, pic, field, motion, Species, and Boundaries files. Exceptions: I/O parts. Files left: output, main, plotters.
+
+----
+
+
+2020_11_19.txt -PHD --scsi
+
+> I created the class 'Constant_Magnetic_Field_recursive', but actually it is not necessary per se, since the Magnetic field is constant in all the domain. When the gather process is performed, no further precission is added to the particles if I include the magnetic field in the finer meshes. However I do need to use the class to run the gather function without problems in the protocol. If I want to include a magnetic field that varies in space later, I have to include it in the 'mesh_setup' function, but it is no more than renaming the keywords to differentiate between electric and magnetic field, and include one more row everywhere.
+
+----
+
+
+2020_11_20.txt -PHD --scsi
+
+> I made the decision of not keeping repeated nodes at corners of boundaries, and only having that information as indexes that appear in two arrays from the group bottom, left, right and top. The reasoning that I did is stored in the picture '2020_11_20_SCSI.jpg', in folder 'Notes/files'. I will keep the unique functions already written throughout the code for compatibility. On direction_sat for the nodes in the corners, I will just put 0 ('bottom') since anyways it does not affect which direction is. At the end, when scatter is used the corner node of the parent mesh should absorb all the value of the children node.
+>> For this nodes: direction_sat = the smallest of the two possibilites, area_sat = same as other nodes, volumes = 3/4 of a node not in a border.
+
+----
+
+
+2020_11_24.txt -PHD --scsi
+
+> injectParticlesDummyBox behaves the same (up to the goals of the method) in 'Outer_2D_rectangular' and 'Inner_2D_rectangular', but they are written differently. The one in 'Inner_2D_rectangular' uses variations of methods that were not available at the moment the one on 'Outer_2D_rectangular' was created.
+
+> Summary of the day:
+>> I finished checking main, and everything in main is already prepared for recursion.
+>> 'output.py' and 'see_yield.py' I revised them as well and they work with the recursion step.
+>> I still have to work on VTK I/O.
+> As well, I still need to brush up the Documentation at 'classes.txt' because is not updated, and maybe do a general revision on how documented my code is.
+> I have to update 'main_only_phe.py' and 'main_only_see.py', but those I will leave them for later. There is also a 'main_noPhe.py' {shrugs}.
+
+----
+
+
+2020_11_25.txt -PHD --scsi
+
+> Each class that produces something as vtk output will still send the info as a dictionary with the arrays inside, being each array an array including all the meshes together with the flatindexation rule. Then, In 'Mesh' class, if the instance is root, will separate each array inside the dictionary into multiples arrays, and will create the sub dictionaries for the different meshes. Then, the recursion takes place, creating for each mesh a file which its name will be the name sent by output + the id of the mesh. Then, if the instance is root, it will create the group file, with the name sent by output, and will include each file recently created.
+>> For the grouping to work, the individual files are needed, so, for each step, I will create a folder inside 'mesh_components' with the same name sent by output, to store the individual files of each timestep.
+>> The approach was changed. The methods 'reverseVTKOrdering' and 'vtkOrdering' are the ones in charge of assembling the arrays into one array, or the opposite.
+
+----
+
+
