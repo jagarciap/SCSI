@@ -95,7 +95,6 @@ class Leap_Frog(Motion_Solver):
 #           attributes will change with the type of phenomena being included.
     @Timing
     def updateMeshValues(self, species, extent = 0, scatter_flux = 1, **kwargs):
-        pdb.set_trace()
         if extent == 0:
             if scatter_flux == 1:
                 self.pic.scatterFlux(species, kwargs['flux'])

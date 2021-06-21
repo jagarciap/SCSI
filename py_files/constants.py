@@ -15,7 +15,9 @@ MU_0 = 4*numpy.pi*1e-7
 NUM_TS = numpy.int(20000)   #Number of total steps in the system
 P_DT= 1e-8            # time step size
 E_DT = 1e-9        # time step for electron dynamics
-ELECTRON_TS = 10   #Internal iterations for electron dynamics
+E_TS = 1    #Timesteps required for execution of electron dynamics
+P_TS = 10   #Timesteps required for protons dynamics
+VTK_TS = 300 #Timesteps required for printing of VTK files
 
 #Geometrical parameters for a rectangular outer boundary
 #XMIN = 0.0
@@ -67,12 +69,12 @@ P_V_TH_MP = numpy.sqrt(2*K*P_T/MP)     #Most Probable speed
 P_V_SW = 300e3
 
 #Particle simulation parameters
-P_SIZE = numpy.uint32(4e6)     #Size of the ions array
-E_SIZE = numpy.uint32(4e6)     #Size of the electrons array
+P_SIZE = numpy.uint32(4e7)     #Size of the ions array
+E_SIZE = numpy.uint32(4e7)     #Size of the electrons array
 PHE_SIZE = numpy.uint32(2e6)     #Size of the electrons array
 SEE_SIZE = numpy.uint32(4e6)     #Size of the electrons array
-P_SPWT = 5e7
-E_SPWT = 5e7
+P_SPWT = 5e6
+E_SPWT = 5e6
 PHE_SPWT = 5e4
 SEE_SPWT = 2e5
 
@@ -88,4 +90,4 @@ B_DIM = 1
 INDEX_PREC = 3
 
 #Capacity Matrix file
-CAPACITY_FILE = None
+CAPACITY_FILE = "inv_capacity_matrix_2021-06-18_15h34m.txt"

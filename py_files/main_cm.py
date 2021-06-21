@@ -13,7 +13,8 @@ import constants as c
 from field import Constant_Magnetic_Field_recursive
 from mesh_setup import mesh_file_reader
 from Species.proton import Proton_SW
-from Species.electron import Electron_SW, Photoelectron, Secondary_Emission_Electron
+from Species.xenon import Xenon_Ion
+from Species.electron import Electron_SW, Photoelectron, Secondary_Emission_Electron, Electron_HET
 from Species.user_defined import User_Defined
 import initial_conditions.satellite_condition as ic
 from motion import Leap_Frog_2D3Dcm
@@ -216,68 +217,89 @@ system.at['part_solver'].updateMeshValues(system.at['photoelectrons'], extent = 
 system.at['part_solver'].updateMeshValues(system.at['protons'], extent = 1, scatter_flux = 0)
 
 ## ---------------------------------------------------------------------------------------------------------------
+# Species Dynamics Functions
+## ---------------------------------------------------------------------------------------------------------------
+
+def SWE():
+    if system.at['ts']%c.VTK_TS == 0:
+        advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
+    else:
+        advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
+
+    #Injection of solar wind electrons at the outer boundary
+    system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+                                                            system.at['e_field'],system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0])
+    return advance_dict_e
+
+def PHE():
+    if system.at['ts']%c.VTK_TS == 0:
+        system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
+    else:
+        system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
+
+    #Injection of Photoelectrons at the Satellite
+    flux, n_delta_phe = system.at['mesh'].boundaries[1].createDistributionAtBorder(system.at['mesh'].boundaries[1].left, system.at['part_solver'], system.at['photoelectrons'], in_phe_n)
+    system.at['mesh'].boundaries[1].injectParticlesAtPositions_smooth(flux, system.at['part_solver'], \
+                                                                       system.at['e_field'], system.at['photoelectrons'], n_delta_phe, in_thermal_phe_vel, system.at['photoelectrons'].dt)
+
+def SEE(advance_dict_e):
+    if system.at['ts']%c.VTK_TS == 0:
+        system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1)
+    else:
+        system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
+
+    #Injection of Secondary Emission Electrons at the Satellite
+    new_see = system.at['see'].see_yield_constant(advance_dict_e['flux'])
+    system.at['mesh'].boundaries[1].injectParticlesAtPositions_smooth(advance_dict_e['flux'], system.at['part_solver'],\
+                                                               system.at['e_field'], system.at['see'], new_see, in_thermal_see_vel, system.at['see'].dt)
+
+def SWP():
+    #Proton motion
+    if system.at['ts']%c.VTK_TS == 0:
+        system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
+    else:
+        system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
+    #for i, boundary in enumerate(system.at['mesh'].boundaries):
+    #    boundary.injectParticlesDummyBox(boundary.location, system.at['part_solver'], system.at['e_field'], system.at['protons'], p_n[i], thermal_p_vel[i], drift_p_vel[i])
+    system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+                                                            system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0])
+
+## ---------------------------------------------------------------------------------------------------------------
 # Main loop
 ## ---------------------------------------------------------------------------------------------------------------
 
 # try/except block to capture any error and save before the step before the crash. It also allows the simulation to be stopped.
 try:
     while system.at['ts'] < c.NUM_TS:
+        print('ts = ', system.at['ts'])
         #Execution time of loop step
         t0 = time.perf_counter()
+        #Variables passed among the species
+        advance_dict_e = None
 
-        print('ts = ', system.at['ts'])
+        #Solving the fields
+        system.at['e_field'].computeField([system.at['protons'], system.at['electrons'], system.at['photoelectrons'], system.at['see']])
     
         # Electron motion
-        for te in range(c.ELECTRON_TS):
-            print('te = ', te)
-            system.at['e_field'].computeField([system.at['protons'], system.at['electrons'], system.at['photoelectrons'], system.at['see']])
-            #system.at['e_field'].computeField([system.at['protons'], system.at['electrons'], system.at['user']])
-            if te == 0:
-                advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
-                #I could add SEE from these two species as well, but let's wait for now
-                system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
-                system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1)
-            else:
-                advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
-                #I could add SEE from these two species as well, but let's wait for now
-                system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
-                system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
-            #Injection of solar wind electrons at the outer boudnary
-            system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
-                                                                    system.at['e_field'],system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0])
-            #Injection of Photoelectrons at the Satellite
-            flux, n_delta_phe = system.at['mesh'].boundaries[1].createDistributionAtBorder(system.at['mesh'].boundaries[1].left, system.at['part_solver'], system.at['photoelectrons'], in_phe_n)
-            system.at['mesh'].boundaries[1].injectParticlesAtPositions_smooth(flux, system.at['part_solver'], \
-                                                                       system.at['e_field'], system.at['photoelectrons'], n_delta_phe, in_thermal_phe_vel, system.at['photoelectrons'].dt)
-            #Injection of Secondary Emission Electrons at the Satellite
-            new_see = system.at['see'].see_yield_constant(advance_dict_e['flux'])
-            system.at['mesh'].boundaries[1].injectParticlesAtPositions_smooth(advance_dict_e['flux'], system.at['part_solver'],\
-                                                                       system.at['e_field'], system.at['see'], new_see, in_thermal_see_vel, system.at['see'].dt)
-            ##NOTE: For testing
-            #system.at['part_solver'].updateMeshValues(system.at['electrons'], extent = 2)
-            #system.at['part_solver'].updateMeshValues(system.at['photoelectrons'], extent = 2)
-            #system.at['part_solver'].updateMeshValues(system.at['see'], extent = 2)
-            #system.at['part_solver'].updateMeshValues(system.at['protons'], extent = 2)
-            #out.saveVTK(system.at['mesh'], system.at, system.arrangeVTK(), filename_ext='_te{:02d}'.format(te))
-            
+        if system.at['ts']%c.E_TS == 0:
+            advance_dict_e = SWE()
+            PHE()
+            SEE(advance_dict_e)
 
-        #Proton motion
-        system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
-        #for i, boundary in enumerate(system.at['mesh'].boundaries):
-        #    boundary.injectParticlesDummyBox(boundary.location, system.at['part_solver'], system.at['e_field'], system.at['protons'], p_n[i], thermal_p_vel[i], drift_p_vel[i])
-        system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
-                                                                system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0])
+        # Protons motion
+        if system.at['ts']%c.P_TS == 0:
+            SWP()
 
         #Output vtk
-        if system.at['ts']%20 == 0:
+        if system.at['ts']%c.VTK_TS == 0:
             system.at['part_solver'].updateMeshValues(old_system.at['electrons'], extent = 2)
             system.at['part_solver'].updateMeshValues(old_system.at['photoelectrons'], extent = 2)
             system.at['part_solver'].updateMeshValues(old_system.at['see'], extent = 2)
             system.at['part_solver'].updateMeshValues(old_system.at['protons'], extent = 2)
             out.saveVTK(system.at['mesh'], old_system.at, system.arrangeVTK())
-        if system.at['ts']%10000 == 0:
+        if system.at['ts']%100000 == 100000-1:
             out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
-        if system.at['ts']%10000 == 0:
+        if system.at['ts']%100000 == 100000-1:
             out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'], old_system.at['photoelectrons'], old_system.at['see'])
     
         #Updating previous state
@@ -287,7 +309,7 @@ try:
         #Execution time of loop step and storage
         t1 = time.perf_counter()
         getattr(Timing, 'time_dict')['Global'] = t1-t0
-        if system.at['ts']%10 == 0:
+        if system.at['ts']%100 == 0:
             out.saveTimes(system.at['ts'], getattr(Timing, 'time_dict'))
         Timing.reset_dict()
 

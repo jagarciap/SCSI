@@ -319,7 +319,6 @@ class PIC_2D_rm1o_recursive(PIC_recursive, PIC_2D_rm1o):
         temp = field[ind]
         super(PIC_recursive, self).scatter(pos, val, temp)
         field[ind] += temp
-        field[ind][:self.mesh.nx] = field[ind][self.mesh.nx:2*self.mesh.nx]
 
     def scatter_1D(self, positions, values, field, location, add_info):
         if self.root == True:
@@ -517,6 +516,7 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
             val = numpy.append(val, field[ind_i][nonzero])
         temp = field[ind]
         super(PIC_recursive, self).scatter(pos, val, temp)
+        temp[:self.mesh.nx] = temp[self.mesh.nx:2*self.mesh.nx]*self.mesh.volumes[0]/self.mesh.volumes[self.mesh.nx]
         field[ind] += temp
 
     def scatter_1D(self, positions, values, field, location, add_info):

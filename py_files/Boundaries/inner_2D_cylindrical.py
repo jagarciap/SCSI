@@ -172,7 +172,6 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
 #               The tuple (pos, border) is reffered as flux in the program.
     @Timing
     def createDistributionAtBorder(self, location, part_solver, species, delta_n, prec = 1e-5):
-        add_rand = numpy.random.rand(len(location))
         #This needs to be generalized later
         #NOTE: Modified(2021/02/14) with no backward compatibility
         local_loc = location_indexes_inv(location, store = False)
@@ -181,11 +180,12 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
         #Treating borders
         y = (numpy.arange(part_solver.pic.mesh.nPoints)//part_solver.pic.mesh.nx)*part_solver.pic.mesh.dy+part_solver.pic.mesh.ymin
         if part_solver.pic.mesh.ymin == 0.0:
-            y[:part_solver.pic.mesh.nx] = part_solver.pic.mesh.dy/4
+            y[:part_solver.pic.mesh.nx] = part_solver.pic.mesh.dy/8
         dv = 2*numpy.pi*y*part_solver.pic.mesh.dy*part_solver.pic.mesh.dx
         mpf_new /= numpy.where(numpy.abs(dv[location]/part_solver.pic.mesh.volumes[location]-2) > 1e-3, 2, 1)
 
         #Computing number of particles created
+        add_rand = numpy.random.rand(len(location))
         mpf_new = mpf_new/species.spwt+species.mesh_values.residuals[location]+add_rand
         mp_new = mpf_new.astype(int)
         species.mesh_values.residuals[location] = mpf_new-mp_new
@@ -207,13 +207,13 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
         shifts -= numpy.where(numpy.abs(pos_1[ind,0]-self.xmax) < prec, random*part_solver.pic.mesh.dx/2, 0)
         pos_1[ind,0] += shifts
         #Left
-        rmin = numpy.where(pos[ind_l,1] == self.ymin, pos[ind_l,1], pos[ind_l,1]-pic.mesh.dy/2)
-        rmax = numpy.where(pos[ind_l,1] == self.ymax, pos[ind_l,1], pos[ind_l,1]+pic.mesh.dy/2)
-        pos_1[numpy.repeat(ind_l, mp_new),1] = cmt.randomYPositions_2D_cm(pos[ind_l,:], rmin, rmax)
+        rmin = numpy.where(pos[ind_l,1] == self.ymin, pos[ind_l,1], pos[ind_l,1]-part_solver.pic.mesh.dy/2)
+        rmax = numpy.where(pos[ind_l,1] == self.ymax, pos[ind_l,1], pos[ind_l,1]+part_solver.pic.mesh.dy/2)
+        pos_1[numpy.repeat(ind_l, mp_new),1] = cmt.randomYPositions_2D_cm(mp_new[ind_l], rmin, rmax)
         #Right
-        rmin = numpy.where(pos[ind_r,1] == self.ymin, pos[ind_r,1], pos[ind_r,1]-pic.mesh.dy/2)
-        rmax = numpy.where(pos[ind_r,1] == self.ymax, pos[ind_r,1], pos[ind_r,1]+pic.mesh.dy/2)
-        pos_1[numpy.repeat(ind_r, mp_new),1] = cmt.randomYPositions_2D_cm(pos[ind_r,:], rmin, rmax)
+        rmin = numpy.where(pos[ind_r,1] == self.ymin, pos[ind_r,1], pos[ind_r,1]-part_solver.pic.mesh.dy/2)
+        rmax = numpy.where(pos[ind_r,1] == self.ymax, pos[ind_r,1], pos[ind_r,1]+part_solver.pic.mesh.dy/2)
+        pos_1[numpy.repeat(ind_r, mp_new),1] = cmt.randomYPositions_2D_cm(mp_new[ind_r], rmin, rmax)
         #Top
         random = numpy.random.rand(numpy.sum(mp_new[ind_t]))
         random += numpy.where(random == 0, 1e-3, 0)

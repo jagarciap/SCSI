@@ -232,7 +232,8 @@ system.at['part_solver'].updateMeshValues(system.at['protons'], extent = 1, scat
 ## ---------------------------------------------------------------------------------------------------------------
 
 def SWE():
-    if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+1:
+    #if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+c.E_TS:
+    if system.at['ts']%c.VTK_TS == 0:
         advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
     else:
         advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
@@ -243,7 +244,8 @@ def SWE():
     return advance_dict_e
 
 def PHE():
-    if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+1:
+    #if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+c.E_TS:
+    if system.at['ts']%c.VTK_TS == 0:
         system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
     else:
         system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
@@ -254,7 +256,8 @@ def PHE():
                                                                        system.at['e_field'], system.at['photoelectrons'], n_delta_phe, in_thermal_phe_vel, system.at['photoelectrons'].dt)
 
 def SEE(advance_dict_e):
-    if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+1:
+    #if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+c.E_TS:
+    if system.at['ts']%c.VTK_TS == 0:
         system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1)
     else:
         system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
@@ -265,7 +268,8 @@ def SEE(advance_dict_e):
                                                                system.at['e_field'], system.at['see'], new_see, in_thermal_see_vel, system.at['see'].dt)
 
 def HET_E():
-    if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+1:
+    #if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+c.E_TS:
+    if system.at['ts']%c.VTK_TS == 0:
         system.at['part_solver'].advance(system.at['electrons_HET'], [system.at['e_field']], [system.at['m_field']], extent = 1)
     else:
         system.at['part_solver'].advance(system.at['electrons_HET'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
@@ -278,7 +282,8 @@ def HET_E():
 
 def SWP():
     #Proton motion
-    if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+c.P_TS:
+    #if system.at['ts']%c.VTK_TS == c.VTK_TS-c.HET_ION_TS+c.P_TS:
+    if system.at['ts']%c.VTK_TS == 0:
         system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
     else:
         system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
@@ -340,10 +345,10 @@ try:
             system.at['part_solver'].updateMeshValues(old_system.at['see'], extent = 2)
             system.at['part_solver'].updateMeshValues(old_system.at['protons'], extent = 2)
             out.saveVTK(system.at['mesh'], old_system.at, system.arrangeVTK())
-        if system.at['ts']%100000 == 100000-1:
-            out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
-        if system.at['ts']%100000 == 100000-1:
-            out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'], old_system.at['photoelectrons'], old_system.at['see'])
+        #if system.at['ts']%100000 == 100000-1:
+        #    out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
+        #if system.at['ts']%100000 == 100000-1:
+        #    out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'], old_system.at['photoelectrons'], old_system.at['see'])
     
         #Updating previous state
         deepcopy = Timing(copy.deepcopy)
