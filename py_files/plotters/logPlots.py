@@ -37,4 +37,21 @@ def SEE_to_SW_electron_production(last_line, filename = './log.txt'):
     plt.legend()
     plt.show()
 
-SEE_to_SW_electron_production(44438)
+def potential_plot(filename = './log.txt'):
+    pots = []
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            #I am taking here even the values calculated at each te substep
+            if "Satellite potential" in line:
+                val = float(line.split(":")[1].strip())
+                pots.append(val)
+
+    #Make plot
+    fig = plt.figure(figsize=(16,8))
+    plt.plot(pots, color = 'blue')
+    plt.title("Potential evolution")
+    plt.legend()
+    plt.show()
+
+potential_plot()

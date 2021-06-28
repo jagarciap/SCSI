@@ -463,7 +463,7 @@ class Inner_1D_Rectangular(Boundary):
 
             #Calculating outgoing flux
             #NOTE: this should be updated
-            if self.material != 'space':
+            if self.material != 'space' and self.material != 'HET':
                 hit = (numpy.append(pos_copy, border[:,None], axis = 1), numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
                 part_solver.pic.scatterOutgoingFlux(species, hit)
 

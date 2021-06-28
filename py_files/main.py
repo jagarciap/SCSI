@@ -338,13 +338,13 @@ try:
 
         #Output vtk
         if system.at['ts']%c.VTK_TS == 0:
-            system.at['part_solver'].updateMeshValues(old_system.at['ions_HET'], extent = 2)
-            system.at['part_solver'].updateMeshValues(old_system.at['electrons'], extent = 2)
-            system.at['part_solver'].updateMeshValues(old_system.at['electrons_HET'], extent = 2)
-            system.at['part_solver'].updateMeshValues(old_system.at['photoelectrons'], extent = 2)
-            system.at['part_solver'].updateMeshValues(old_system.at['see'], extent = 2)
-            system.at['part_solver'].updateMeshValues(old_system.at['protons'], extent = 2)
-            out.saveVTK(system.at['mesh'], old_system.at, system.arrangeVTK())
+            system.at['part_solver'].updateMeshValues(system.at['ions_HET'], extent = 2)
+            system.at['part_solver'].updateMeshValues(system.at['electrons'], extent = 2)
+            system.at['part_solver'].updateMeshValues(system.at['electrons_HET'], extent = 2)
+            system.at['part_solver'].updateMeshValues(system.at['photoelectrons'], extent = 2)
+            system.at['part_solver'].updateMeshValues(system.at['see'], extent = 2)
+            system.at['part_solver'].updateMeshValues(system.at['protons'], extent = 2)
+            out.saveVTK(system.at['mesh'], system.at, system.arrangeVTK())
         #if system.at['ts']%100000 == 100000-1:
         #    out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
         #if system.at['ts']%100000 == 100000-1:
