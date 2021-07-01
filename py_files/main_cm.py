@@ -49,7 +49,7 @@ class System(object):
         self.at = {}
         self.at['ts'] = 0
         #TODO: Change later
-        self.at['mesh'], self.at['pic'], self.at['e_field'] = mesh_file_reader('2021_04_15_cm.txt')
+        self.at['mesh'], self.at['pic'], self.at['e_field'] = mesh_file_reader('2021_06_30_cm.txt')
         self.at['mesh'].print()
         self.at['electrons'] = Electron_SW(0.0, c.E_SPWT, c.E_SIZE, c.DIM, 3, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
         self.at['photoelectrons'] = Photoelectron(c.PHE_T, c.PHE_FLUX, 0.0, c.PHE_SPWT, c.PHE_SIZE, c.DIM, 3, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)

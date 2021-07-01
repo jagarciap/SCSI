@@ -487,7 +487,6 @@ def capacity_Inv_Matrix_asym_recursive(field):
                     print("Incomplete matrix stored")
                     raise error
 
-                #NOTE: If there is an error here, check whether is because of eliminating same from repeated_ind
                 matrix_ind = list(location_indexes_inv(same_ind, store = False))
                 def create_inv_capacity_matrix(field_i, ind_list, counter_sat = None):
                     if counter_sat == None:

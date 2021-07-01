@@ -183,6 +183,7 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
             y[:part_solver.pic.mesh.nx] = part_solver.pic.mesh.dy/8
         dv = 2*numpy.pi*y*part_solver.pic.mesh.dy*part_solver.pic.mesh.dx
         mpf_new /= numpy.where(numpy.abs(dv[location]/part_solver.pic.mesh.volumes[location]-2) > 1e-3, 2, 1)
+        pdb.set_trace()
 
         #Computing number of particles created
         add_rand = numpy.random.rand(len(location))

@@ -23,7 +23,7 @@ from timing import Timing
 #       +rmin (double) = Inner radius of the thruster exit
 #       +rmax (double) = Outer radius of the thruster exit
 #       +exit_area (double) = Area at the thruster exit
-#       +exi_nodes ([ind]) = Nodes where the information of Species is stores.
+#       +exi_nodes ([ind]) = Nodes where the information of Species is stored.
 #       +exit_pot (double) = Electric potential at the exit nodes
 #       +exit_pot_nodes ([ind]) = Nodes where the potential of the thruster exit is applied
 #       +Boundary attributes

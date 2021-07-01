@@ -1006,10 +1006,10 @@ class Mesh_2D_cm (Mesh_2D_rm):
         self.nPoints = numpy.uint32(self.nx*self.ny)
         y = (numpy.arange(self.nPoints)//self.nx)*self.dy+self.ymin
         if self.ymin == 0.0:
-            y[:self.nx] = self.dy/4
+            y[:self.nx] = self.dy/8
 
         self.volumes = 2*numpy.pi*y*self.dy*self.dx
-        self.volumes[:self.nx] /= 2
+        self.volumes[:self.nx] /= 1 if self.ymin == 0.0 else 2
         self.volumes[self.nx*(self.ny-1):] /= 2
         self.volumes[self.nx-1::self.nx] /= 2
         self.volumes[:self.nx*self.ny:self.nx] /= 2
@@ -1174,10 +1174,10 @@ class Mesh_2D_cm_sat (Mesh_2D_cm):
         self.nPoints = numpy.uint32(self.nx*self.ny)
         y = (numpy.arange(self.nPoints)//self.nx)*self.dy+self.ymin
         if self.ymin == 0.0:
-            y[:self.nx] = self.dy/4
+            y[:self.nx] = self.dy/8
 
         self.volumes = 2*numpy.pi*y*self.dy*self.dx
-        self.volumes[:self.nx] /= 2
+        self.volumes[:self.nx] /= 1 if self.ymin == 0.0 else 2
         self.volumes[self.nx*(self.ny-1):] /= 2
         self.volumes[self.nx-1::self.nx] /= 2
         self.volumes[:self.nx*self.ny:self.nx] /= 2

@@ -429,6 +429,7 @@ class Inner_1D_Rectangular(Boundary):
             elif border[0] == 2:
                 pos[:,1] += delta_pos+vx*dt*rand
                 vel[:,1] *= numpy.where(vel[:,1] < 0, -1, 1)
+                print("Positions in y component: ", pos[:10,1], len(pos[:,1]))
             else:
                 pdb.set_trace()
 
@@ -463,6 +464,7 @@ class Inner_1D_Rectangular(Boundary):
 
             #Calculating outgoing flux
             #NOTE: this should be updated
+            pdb.set_trace()
             if self.material != 'space' and self.material != 'HET':
                 hit = (numpy.append(pos_copy, border[:,None], axis = 1), numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
                 part_solver.pic.scatterOutgoingFlux(species, hit)

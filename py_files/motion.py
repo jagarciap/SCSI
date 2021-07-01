@@ -203,7 +203,7 @@ class Boris_Push(Motion_Solver):
 #           '2' indicating that the 'non-necessary' attributes are the only ones updated. Notice that the criteria between 'necessary' and 'non-necessary'
 #           attributes will change with the type of phenomena being included.
     @Timing
-    def updateMeshValues(self, species, extent = 1, scatter_flux = 0, **kwargs):
+    def updateMeshValues(self, species, extent = 1, scatter_flux = 1, **kwargs):
         #if species.name == "Electron - Solar wind" or species.name == "Proton - Solar wind":
         if extent == 0:
             if scatter_flux == 1:

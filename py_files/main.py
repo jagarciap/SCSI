@@ -55,7 +55,7 @@ class System(object):
         self.at['electrons_HET'] = Electron_HET(c.HET_E_T, 0.0, c.HET_E_SPWT, c.HET_E_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
         self.at['photoelectrons'] = Photoelectron(c.PHE_T, c.PHE_FLUX, 0.0, c.PHE_SPWT, c.PHE_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
         self.at['see'] = Secondary_Emission_Electron(c.SEE_T, 0.0, c.SEE_SPWT, c.SEE_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
-        self.at['ions_HET'] = Xenon_Ion(0.0, c.HET_ION_SPWT, c.HET_ION_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
+        self.at['ions_HET'] = Xenon_Ion(0.0, c.HET_ION_SPWT, c.HET_ION_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED, "")
         self.at['protons'] = Proton_SW(0.0, c.P_SPWT, c.P_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
         #self.at['user'] = User_Defined(c.P_DT, -c.QE, c.MP, 0, c.P_SPWT, 1, c.DIM, c.DIM, self.at['mesh'].nPoints, 0, "1")
         self.at['m_field'] = Constant_Magnetic_Field_recursive(self.at['pic'], c.B_DIM, [], True)
