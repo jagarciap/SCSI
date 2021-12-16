@@ -99,7 +99,7 @@ class Leap_Frog(Motion_Solver):
             if scatter_flux == 1:
                 self.pic.scatterFlux(species, kwargs['flux'])
             self.pic.scatterDensity(species)
-            self.motionTreatment(species)
+            #self.motionTreatment(species)
             self.pic.scatterSpeed(species)
             self.pic.scatterTemperature(species)
         elif extent == 1:
@@ -206,10 +206,11 @@ class Boris_Push(Motion_Solver):
     def updateMeshValues(self, species, extent = 1, scatter_flux = 1, **kwargs):
         #if species.name == "Electron - Solar wind" or species.name == "Proton - Solar wind":
         if extent == 0:
-            if scatter_flux == 1:
+            if scatter_flux == 0:
                 self.pic.scatterFlux(species, kwargs['flux'])
             self.pic.scatterDensity(species)
-            self.motionTreatment(species)
+            #NOTE: Be careful, the concept behind scatter_flux == 0 has changed, which is why here motion treatment is commented
+            #self.motionTreatment(species)
             self.pic.scatterSpeed(species)
             self.pic.scatterTemperature(species)
         elif extent == 1:

@@ -12,9 +12,12 @@ sys.path.insert(0,'..')
 
 import constants as c
 from mesh import Mesh_2D_rm_sat
+from mesh import Mesh_2D_cm_sat
 from Boundaries.inner_2D_rectangular import Inner_2D_Rectangular
 from Boundaries.outer_1D_rectangular import Outer_1D_Rectangular
 from Boundaries.outer_2D_rectangular import Outer_2D_Rectangular
+from Boundaries.outer_2D_cylindrical import Outer_2D_Cylindrical
+from Boundaries.inner_2D_cylindrical import Inner_2D_Cylindrical
 import vtr_to_numpy as vtn
 
 plt.rc('text', usetex=True)
@@ -31,9 +34,9 @@ plt.rcParams['text.latex.preamble'] = [r'\boldmath']
 #mesh = Mesh_2D_rm_sat(7.0, 12.2, -2.6, 2.6, 9.0, 10.2, -0.6, 0.6, 0.02, 0.02, 1.2, [outer, inner])
 #temp = numpy.arange(mesh.nPoints, dtype = numpy.uint32)
 # 0-0-0
-outer = Outer_2D_Rectangular(5.0, 19.2, -6.0, 6.0, 'space')
-inner = Inner_2D_Rectangular(9.0, 16.2, -1.8, 1.8, 'satellite')
-mesh = Mesh_2D_rm_sat(5.0, 19.2, -6.0, 6.0, 9.0, 16.2, -1.8, 1.8, 0.04, 0.04, 0.875, [outer, inner])
+outer = Outer_2D_Cylindrical(5.4, 10.2, 0.0, 2.4, 'space')
+inner = Inner_2D_Cylindrical(7.2, 8.4, 0.0, 0.6, 'satellite')
+mesh = Mesh_2D_cm_sat(5.4, 10.2, 0.0, 2.4, 7.2, 8.4, 0.0, 0.6, 0.03, 0.03, [outer, inner])
 temp = numpy.arange(mesh.nPoints, dtype = numpy.uint32)
 #temp = numpy.delete(temp, numpy.append(mesh.boundaries[1].location, mesh.boundaries[1].ind_inner))
 temp = numpy.delete(temp, mesh.boundaries[1].ind_inner)
@@ -294,6 +297,100 @@ def wall_potential(name):
     plt.legend(fontsize = 20)
     plt.show()
 
+def satellite_potential_time(data, name, init_time = 0):
+    fig = plt.figure(figsize=(16,8))
+    sat = numpy.unique(mesh.boundaries[1].top)
+    ind_sat = sat[0]
+    time = numpy.arange(init_time, init_time+len(data[name][0,init_time:]))*c.E_DT*c.E_TS*c.VTK_TS/1e-6
+    plt.plot(time, data[name][ind_sat,init_time:], label = "Satellite potential")
+
+    #plt.title(r'\textbf{Satellite Potential [V]}', fontsize = 24)
+    plt.ylabel(r'\textbf{Satellite Potential [V]}', fontsize = 22)
+    plt.xlabel(r'\textbf{Time [$\mu$s]}', fontsize = 22)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.grid()
+    plt.legend(fontsize = 20)
+    plt.show()
+
+def satellite_potential_FT(data, name, init_time = 15):
+    fig = plt.figure(figsize=(16,8))
+    sat = numpy.unique(mesh.boundaries[1].top)
+    ind_sat = sat[0]
+    #time = numpy.arange(len(data[name][0,init_time:]))*c.E_DT*c.E_TS*c.VTK_TS/1e-6
+    pot = data[name][ind_sat,init_time:]
+    #pot_trans = numpy.fft.fft(pot)
+    pot_trans = numpy.fft.fft(pot-numpy.mean(pot))
+    freq = numpy.fft.fftfreq(len(pot), d = c.E_DT*c.E_TS*c.VTK_TS)
+    fs = 1/(c.E_DT*c.E_TS*c.VTK_TS)
+    freq = numpy.arange(-fs/2, fs/2, fs/len(pot_trans))
+    pot_trans = 1/len(pot_trans)*numpy.abs(numpy.fft.fftshift(pot_trans))
+    #(PRPnp.abs(numpy.fft.fft(signal,axis=axis)
+    #plt.plot(freq, pot_trans.real, label = "Satellite potential-real")
+    #plt.plot(freq, pot_trans.imag, label = "Satellite potential-imaginary")
+    plt.plot(freq/1e6, pot_trans, label = "Satellite potential-magnitude")
+
+    #plt.title(r'\textbf{Satellite Potential [V]}', fontsize = 24)
+    plt.ylabel(r'\textbf{Satellite Potential [V]}', fontsize = 22)
+    plt.xlabel(r'\textbf{Frequency [MHz]}', fontsize = 22)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.grid()
+    plt.xlim(xmin=-0.01)
+    plt.legend(fontsize = 20)
+    plt.show()
+    plt.savefig('plotters/plots/pot_FT.png')
+    numpy.savetxt('plotters/plots/pot_FT.dat', numpy.append(freq[:,None], pot_trans[:,None], axis = 1))
+
+    #fig = plt.figure(figsize=(16,8))
+    #real_2 = pot_trans.real[1:int((len(freq)-1)/2)+1]+pot_trans.real[-1:int((len(freq)-1)/2):-1]
+    #imag_2 = pot_trans.imag[1:int((len(freq)-1)/2)+1]-pot_trans.imag[-1:int((len(freq)-1)/2):-1]
+    #plt.plot(freq[1:int((len(freq)-1)/2)+1], real_2, label = "Satellite potential-real")
+    #plt.plot(freq[1:int((len(freq)-1)/2)+1], imag_2, label = "Satellite potential-imaginary")
+
+    ##plt.title(r'\textbf{Satellite Potential [V]}', fontsize = 24)
+    #plt.ylabel(r'\textbf{Satellite Potential [V]}', fontsize = 22)
+    #plt.xlabel(r'\textbf{Time [$\mu$s]}', fontsize = 22)
+    #plt.tick_params(axis='both', which='major', labelsize=20)
+    #plt.grid()
+    #plt.legend(fontsize = 20)
+    #plt.show()
+    
+def density_FT(data, name, init_time = 79, ind = 3965):
+    fig = plt.figure(figsize=(16,8))
+    #time = numpy.arange(len(data[name][0,init_time:]))*c.E_DT*c.E_TS*c.VTK_TS/1e-6
+    pot = data[name][ind,init_time:]
+    #pot_trans = numpy.fft.fft(pot)
+    pot_trans = numpy.fft.fft(pot-numpy.mean(pot))
+    freq = numpy.fft.fftfreq(len(pot), d = c.E_DT*c.E_TS*c.VTK_TS)
+    fs = 1/(c.E_DT*c.E_TS*c.VTK_TS)
+    freq = numpy.arange(-fs/2, fs/2, fs/len(pot_trans))
+    pot_trans = numpy.fft.fftshift(pot_trans)
+    #(PRPnp.abs(numpy.fft.fft(signal,axis=axis)
+    #plt.plot(freq, pot_trans.real, label = "Satellite potential-real")
+    #plt.plot(freq, pot_trans.imag, label = "Satellite potential-imaginary")
+    plt.plot(freq/1e6, numpy.abs(pot_trans), label = "Density-magnitude")
+
+    #plt.title(r'\textbf{Satellite Potential [V]}', fontsize = 24)
+    plt.ylabel(r'\textbf{Density [1/m3]}', fontsize = 22)
+    plt.xlabel(r'\textbf{Frequency [GHz]}', fontsize = 22)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.grid()
+    plt.legend(fontsize = 20)
+    plt.show()
+
+    #fig = plt.figure(figsize=(16,8))
+    #real_2 = pot_trans.real[1:int((len(freq)-1)/2)+1]+pot_trans.real[-1:int((len(freq)-1)/2):-1]
+    #imag_2 = pot_trans.imag[1:int((len(freq)-1)/2)+1]-pot_trans.imag[-1:int((len(freq)-1)/2):-1]
+    #plt.plot(freq[1:int((len(freq)-1)/2)+1], real_2, label = "Satellite potential-real")
+    #plt.plot(freq[1:int((len(freq)-1)/2)+1], imag_2, label = "Satellite potential-imaginary")
+
+    ##plt.title(r'\textbf{Satellite Potential [V]}', fontsize = 24)
+    #plt.ylabel(r'\textbf{Satellite Potential [V]}', fontsize = 22)
+    #plt.xlabel(r'\textbf{Time [$\mu$s]}', fontsize = 22)
+    #plt.tick_params(axis='both', which='major', labelsize=20)
+    #plt.grid()
+    #plt.legend(fontsize = 20)
+    #plt.show()
+    
 def wall_density_diff(name):
     fig = plt.figure(figsize=(16,8))
     data = vtn.vtrToNumpy(mesh, vtn.loadFromResults(), name)
@@ -522,6 +619,9 @@ for name, array in zip(names, results):
 ###debye_length_test(["Electric - Electrostatic_2D_rm-potential"])
 #wall_potential(["Electric - Electrostatic_2D_rm_sat-potential"])
 ###wall_density_diff(["Electron - Solar wind-density", "Proton - Solar wind-density"])
+#satellite_potential_time(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
+#satellite_potential_FT(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
+#density_FT(data, "Electron - Solar wind-density")
 current_collected_time(data, ["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"])
 current_collected_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"])
 current_recollection_percentage_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\

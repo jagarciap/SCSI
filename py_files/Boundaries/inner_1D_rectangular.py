@@ -119,6 +119,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit_ind = numpy.nonzero(numpy.logical_and(self.xmin <= hit, hit <= self.xmax))[0]
                 coord = numpy.append(hit[hit_ind,None], numpy.append(self.ymin*numpy.ones_like((hit_ind))[:,None],\
                                                               numpy.zeros_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind[hit_ind]][:,None], axis = 1)
                 vel = -copy.copy(species.part_values.velocity[ind[hit_ind],1])
                 tan_vel = copy.copy(species.part_values.velocity[ind[hit_ind],0])
                 cos = 1/numpy.sqrt(slope*slope+1)[hit_ind]
@@ -130,6 +131,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit_ind = numpy.nonzero(numpy.logical_and(self.ymin <= hit, hit <= self.ymax))[0]
                 coord = numpy.append(self.xmin*numpy.ones_like((hit_ind))[:,None], numpy.append(hit[hit_ind,None],\
                                         3*numpy.ones_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind[hit_ind]][:,None], axis = 1)
                 vel = -species.part_values.velocity[ind[hit_ind], 0]
                 tan_vel = species.part_values.velocity[ind[hit_ind], 1]
                 cos = 1/numpy.sqrt(slope*slope+1)[hit_ind]
@@ -141,6 +143,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit_ind = numpy.nonzero(numpy.logical_and(self.ymin <= hit, hit <= self.ymax))[0]
                 coord = numpy.append(self.xmax*numpy.ones_like((hit_ind))[:,None], numpy.append(hit[hit_ind,None],\
                                         numpy.ones_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind[hit_ind]][:,None], axis = 1)
                 vel = species.part_values.velocity[ind[hit_ind], 0]
                 tan_vel = species.part_values.velocity[ind[hit_ind], 1]
                 cos = 1/numpy.sqrt(slope*slope+1)[hit_ind]
@@ -152,6 +155,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit_ind = numpy.nonzero(numpy.logical_and(self.xmin <= hit, hit <= self.xmax))[0]
                 coord = numpy.append(hit[hit_ind,None], numpy.append(self.ymax*numpy.ones_like((hit_ind))[:,None],\
                                                                 2*numpy.ones_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind[hit_ind]][:,None], axis = 1)
                 vel = species.part_values.velocity[ind[hit_ind], 1]
                 tan_vel = species.part_values.velocity[ind[hit_ind], 0]
                 cos = 1/numpy.sqrt(slope*slope+1)[hit_ind]
@@ -176,6 +180,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit = slope*(self.ymin-old_position[ind,1])+old_position[ind,0]
                 coord = numpy.append(hit[:,None], numpy.append(self.ymin*numpy.ones_like((hit))[:,None],\
                                                               numpy.zeros_like((hit), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind][:,None], axis = 1)
                 vel = copy.copy(species.part_values.velocity[ind,1])
                 tan_vel = copy.copy(species.part_values.velocity[ind,0])
                 cos = 1/numpy.sqrt(slope*slope+1)
@@ -186,6 +191,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit = slope*(self.xmin-old_position[ind,0])+old_position[ind,1]
                 coord = numpy.append(self.xmin*numpy.ones_like((hit))[:,None], numpy.append(hit[:,None],\
                                         3*numpy.ones_like((hit), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind][:,None], axis = 1)
                 vel = species.part_values.velocity[ind, 0]
                 tan_vel = species.part_values.velocity[ind, 1]
                 cos = 1/numpy.sqrt(slope*slope+1)
@@ -196,6 +202,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit = slope*(self.xmax-old_position[ind,0])+old_position[ind,1]
                 coord = numpy.append(self.xmax*numpy.ones_like((hit))[:,None], numpy.append(hit[:,None],\
                                         numpy.ones_like((hit), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind][:,None], axis = 1)
                 vel = -species.part_values.velocity[ind, 0]
                 tan_vel = species.part_values.velocity[ind, 1]
                 cos = 1/numpy.sqrt(slope*slope+1)
@@ -206,6 +213,7 @@ class Inner_1D_Rectangular(Boundary):
                 hit = slope*(self.ymax-old_position[ind,1])+old_position[ind,0]
                 coord = numpy.append(hit[:,None], numpy.append(self.ymax*numpy.ones_like((hit))[:,None],\
                                                                 2*numpy.ones_like((hit), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+                coord = numpy.append(coord, species.part_values.spwt[ind][:,None], axis = 1)
                 vel = -species.part_values.velocity[ind, 1]
                 tan_vel = species.part_values.velocity[ind, 0]
                 cos = 1/numpy.sqrt(slope*slope+1)
@@ -391,7 +399,7 @@ class Inner_1D_Rectangular(Boundary):
             hit_1 = 2*numpy.ones_like(pos_1[:,1], dtype = numpy.uint8)[:,None]
 
         repeats = numpy.ones(numpy.shape(hit_1)[0], dtype = numpy.uint8)
-        return (numpy.append(pos_1, hit_1, axis = 1),), repeats
+        return (numpy.append(numpy.append(pos_1, hit_1, axis = 1), species.spwt*numpy.ones_like(hit_1), axis = 1),), repeats
         
 #       +injectParticlesAtPositions_smooth('flux', Motion_Solver part_solver, Field field, Species species, [double] delta_n, [double] n_vel, double delta_pos) =
 #           The method creates 'delta_n' particles at each entry of 'pos' stored in the parameter 'flux' (See Documentation of 'createDistributionArBorder').
@@ -429,7 +437,6 @@ class Inner_1D_Rectangular(Boundary):
             elif border[0] == 2:
                 pos[:,1] += delta_pos+vx*dt*rand
                 vel[:,1] *= numpy.where(vel[:,1] < 0, -1, 1)
-                print("Positions in y component: ", pos[:10,1], len(pos[:,1]))
             else:
                 pdb.set_trace()
 
@@ -466,7 +473,8 @@ class Inner_1D_Rectangular(Boundary):
             #NOTE: this should be updated
             pdb.set_trace()
             if self.material != 'space' and self.material != 'HET':
-                hit = (numpy.append(pos_copy, border[:,None], axis = 1), numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
+                hit = (numpy.append(numpy.append(pos_copy, border[:,None], axis = 1), species.spwt*numpy.ones_like(border)[:,None], axis = 1),\
+                        numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
                 part_solver.pic.scatterOutgoingFlux(species, hit)
 
             print("Injected particles: ", np)

@@ -53,7 +53,7 @@ class PIC_recursive(object):
     def scatter(self, positions, values, field):
         pass
 
-    def scatterDiffSq(self, positions, values, array_diff, field):
+    def scatterDiffSq(self, positions, values, weights, array_diff, field):
         pass
 
     def gather(self, positions, field, recursive = True):
@@ -121,9 +121,9 @@ class PIC_2D_rm1o(PIC):
         numpy.add.at(field, array[numpy.logical_and(filter_i, filter_j)]+self.mesh.nx+1, di[numpy.logical_and(filter_i, filter_j)]*dj[numpy.logical_and(filter_i, filter_j)]*values[numpy.logical_and(filter_i, filter_j)])
 
 #       +scatterDiffSq([double, double] positions, [double] values, [double] array_diff, [double] field) = Makes a PIC averaging over 
-#           (values-array_diff)**2 in all the nodes involved for every particle in positions. 
+#           weights*(values-array_diff)**2 in all the nodes involved for every particle in positions. 
 #           Thus, array_diff an field need to have the same dimension, and values have to be broadcastable to the len of positions.
-    def scatterDiffSq(self, positions, values, array_diff, field, prec = 10**(-c.INDEX_PREC)):
+    def scatterDiffSq(self, positions, values, weights, array_diff, field, prec = 10**(-c.INDEX_PREC)):
         #Getting mesh coordinates
         mc = self.mesh.getIndex(positions)
         
@@ -136,10 +136,13 @@ class PIC_2D_rm1o(PIC):
         filter_j = dj > prec 
         filter_ij = numpy.logical_and(filter_i, filter_j)
         
-        numpy.add.at(field, array, (1-di)*(1-dj)*(values-array_diff[array])*(values-array_diff[array]))
-        numpy.add.at(field, array[filter_i]+1, di[filter_i]*(1-dj[filter_i])*(values[filter_i]-array_diff[array[filter_i]+1])*(values[filter_i]-array_diff[array[filter_i]+1]))
-        numpy.add.at(field, array[filter_j]+self.mesh.nx, (1-di[filter_j])*dj[filter_j]*(values[filter_j]-array_diff[array[filter_j]+self.mesh.nx])*(values[filter_j]-array_diff[array[filter_j]+self.mesh.nx]))
-        numpy.add.at(field, array[filter_ij]+self.mesh.nx+1, di[filter_ij]*dj[filter_ij]*(values[filter_ij]-array_diff[array[filter_ij]+self.mesh.nx+1])*(values[filter_ij]-array_diff[array[filter_ij]+self.mesh.nx+1]))
+        numpy.add.at(field, array, (1-di)*(1-dj)*(values-array_diff[array])*(values-array_diff[array])*weights)
+        numpy.add.at(field, array[filter_i]+1, di[filter_i]*(1-dj[filter_i])*\
+                (values[filter_i]-array_diff[array[filter_i]+1])*(values[filter_i]-array_diff[array[filter_i]+1])*weights[filter_i])
+        numpy.add.at(field, array[filter_j]+self.mesh.nx, (1-di[filter_j])*dj[filter_j]*\
+                (values[filter_j]-array_diff[array[filter_j]+self.mesh.nx])*(values[filter_j]-array_diff[array[filter_j]+self.mesh.nx])*weights[filter_j])
+        numpy.add.at(field, array[filter_ij]+self.mesh.nx+1, di[filter_ij]*dj[filter_ij]*\
+                (values[filter_ij]-array_diff[array[filter_ij]+self.mesh.nx+1])*(values[filter_ij]-array_diff[array[filter_ij]+self.mesh.nx+1])*weights[filter_ij])
 
 #       +scatterDensity (Species) = return densities of that species in every node of the mesh.
     def scatterDensity(self, species):
@@ -147,7 +150,7 @@ class PIC_2D_rm1o(PIC):
         species.mesh_values.density *= 0
     
         #scatter particles to the mesh
-        self.scatter(species.part_values.position[:species.part_values.current_n], species.spwt*numpy.ones((species.part_values.current_n)), species.mesh_values.density)
+        self.scatter(species.part_values.position[:species.part_values.current_n], species.part_values.spwt[:species.part_values.current_n], species.mesh_values.density)
         
         #divide by cell volume
         species.mesh_values.density /= self.mesh.volumes
@@ -159,9 +162,9 @@ class PIC_2D_rm1o(PIC):
         #scatter particles to the mesh
         for dim in range(numpy.shape(species.part_values.velocity)[1]):
             self.scatter(species.part_values.position[:species.part_values.current_n], \
-                    species.part_values.velocity[:species.part_values.current_n,dim], species.mesh_values.velocity[:,dim])
+                    species.part_values.velocity[:species.part_values.current_n,dim]*species.part_values.spwt[:species.part_values.current_n], species.mesh_values.velocity[:,dim])
             #Finalizing velocity
-            species.mesh_values.velocity[:,dim] *= numpy.where(species.mesh_values.density < 1e-5, 0.0, species.spwt/species.mesh_values.density/self.mesh.volumes)
+            species.mesh_values.velocity[:,dim] *= numpy.where(species.mesh_values.density < 1e-5, 0.0, 1/species.mesh_values.density/self.mesh.volumes)
 
 #       +scatterTemperature(Species) = return temperature of that species in every node of the mesh.
     def scatterTemperature(self, species):
@@ -170,9 +173,10 @@ class PIC_2D_rm1o(PIC):
         #Scatter temperature
         for dim in range(numpy.shape(species.part_values.velocity)[1]):
             self.scatterDiffSq(species.part_values.position[:species.part_values.current_n], \
-                    species.part_values.velocity[:species.part_values.current_n, dim], species.mesh_values.velocity[:,dim], species.mesh_values.temperature)
+                    species.part_values.velocity[:species.part_values.current_n, dim], species.part_values.spwt[:species.part_values.current_n], \
+                    species.mesh_values.velocity[:,dim], species.mesh_values.temperature)
         #Finalizing temperature
-        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, species.spwt/species.mesh_values.density/self.mesh.volumes*species.m/c.K/2)
+        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, 1/species.mesh_values.density/self.mesh.volumes*species.m/c.K/2)
     
 #       +acatterFlux = 
     def scatterFlux(self, species, hit):
@@ -182,10 +186,11 @@ class PIC_2D_rm1o(PIC):
         #Parameter to use
         positions = hit[0][:,:2]
         add_info = hit[0][:,2].astype(int)
+        spwts = hit[0][3]
         #Scatter flux
-        self.scatter_1D(positions, species.spwt*species.q, species.mesh_values.flux, species.mesh_values.fluxind, add_info)
-        self.scatter_1D(positions, species.spwt, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
-        species.mesh_values.flux /= (self.mesh.volumes[species.mesh_values.fluxind]/self.mesh.dx*2)*species.dt
+        self.scatter_1D(positions, spwts*species.q, species.mesh_values.flux, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, spwts, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
+        species.mesh_values.flux /= (self.mesh.area_sat)*species.dt
         species.mesh_values.accDensity /= self.mesh.volumes[species.mesh_values.fluxind]
 
 #       +acatterOutgoingFlux = 
@@ -196,10 +201,11 @@ class PIC_2D_rm1o(PIC):
         #Parameter to use
         positions = hit[0][:,:2]
         add_info = hit[0][:,2].astype(int)
+        spwts = hit[0][3]
         #Scatter flux
-        self.scatter_1D(positions, -species.spwt*species.q, species.mesh_values.outgoing_flux, species.mesh_values.fluxind, add_info)
-        self.scatter_1D(positions, -species.spwt, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
-        species.mesh_values.outgoing_flux /= (self.mesh.volumes[species.mesh_values.fluxind]/self.mesh.dx*2)*species.dt
+        self.scatter_1D(positions, -spwts*species.q, species.mesh_values.outgoing_flux, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, -spwts, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
+        species.mesh_values.flux /= (self.mesh.area_sat)*species.dt
         species.mesh_values.accDensity /= self.mesh.volumes[species.mesh_values.fluxind]
 
 ##	+gather([double, double] positions, [double, double] field): [double, double]field_p = Calculates values of the field in particles' positions, returning these values in an array as long as positions,
@@ -281,9 +287,10 @@ class PIC_2D_cm1o(PIC_2D_rm1o):
         #Scatter temperature
         for dim in range(numpy.shape(species.part_values.velocity)[1]):
             self.scatterDiffSq(species.part_values.position[:species.part_values.current_n], \
-                    species.part_values.velocity[:species.part_values.current_n, dim], species.mesh_values.velocity[:,dim], species.mesh_values.temperature)
+                    species.part_values.velocity[:species.part_values.current_n, dim], species.part_values.spwt[:species.part_values.current_n], \
+                    species.mesh_values.velocity[:,dim], species.mesh_values.temperature)
         #Finalizing temperature
-        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, species.spwt/species.mesh_values.density/self.mesh.volumes*species.m/c.K/3)
+        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, 1/species.mesh_values.density/self.mesh.volumes*species.m/c.K/3)
 
 
 #PIC_2D_rm1o_recursive(Inherits from PIC_recursive and PIC_2D_rm1o):
@@ -382,25 +389,54 @@ class PIC_2D_rm1o_recursive(PIC_recursive, PIC_2D_rm1o):
         numpy.add.at(field, array_1D, (1-dindex)*values)
         numpy.add.at(field, n_index[filter_1D], dindex[filter_1D]*values[filter_1D])
 
-    def scatterDiffSq(self, positions, values, array_diff, field, indices = None):
+#NOTE: I created here a different way of calculating the temperature in the children meshes. Probably is wrong.
+#    def scatterDiffSq(self, positions, values, weights, array_diff, field, indices = None):
+#        if self.root == True:
+#            positions, pos_ind = self.mesh.sortPositionsByMeshes(positions, return_ind = [])
+#            values = [values[i] for i in pos_ind]
+#            weights = [weights[i] for i in pos_ind]
+#            indices = self.mesh.sortArrayByMeshes(numpy.arange(len(field)))
+#        pos = positions.pop(0)
+#        val = values.pop(0)
+#        w = weights.pop(0)
+#        ind = indices.pop(0)
+#        pos_c = numpy.zeros((0,numpy.shape(pos)[1]))
+#        val_c = numpy.zeros((0))
+#        for child in self.children:
+#            ind_i = copy.copy(indices[0])
+#            child.scatterDiffSq(positions, values, weights, array_diff, field, indices = indices)
+#            nonzero = numpy.flatnonzero(field[ind_i])
+#            pos_c = numpy.append(pos_c, child.mesh.getPosition(nonzero), axis = 0)
+#            val_c = numpy.append(val_c, field[ind_i][nonzero])
+#        temp = field[ind]
+#        temp2 = numpy.zeros_like(temp)
+#        super(PIC_recursive, self).scatter(pos_c, val_c, temp)
+#        super(PIC_recursive, self).scatter(pos_c, numpy.ones_like(pos_c[:,0]), temp2)
+#        temp *= numpy.where(temp2 != 0, 1/temp2, 0)
+#        super(PIC_recursive, self).scatterDiffSq(pos, val, w, array_diff[ind], temp)
+#        field[ind] += temp
+
+    def scatterDiffSq(self, positions, values, weights, array_diff, field, indices = None):
         if self.root == True:
             positions, pos_ind = self.mesh.sortPositionsByMeshes(positions, return_ind = [])
             values = [values[i] for i in pos_ind]
+            weights = [weights[i] for i in pos_ind]
             indices = self.mesh.sortArrayByMeshes(numpy.arange(len(field)))
         pos = positions.pop(0)
         val = values.pop(0)
+        w = weights.pop(0)
         ind = indices.pop(0)
         pos_c = numpy.zeros((0,numpy.shape(pos)[1]))
         val_c = numpy.zeros((0))
         for child in self.children:
             ind_i = copy.copy(indices[0])
-            child.scatterDiffSq(positions, values, array_diff, field, indices = indices)
+            child.scatterDiffSq(positions, values, weights, array_diff, field, indices = indices)
             nonzero = numpy.flatnonzero(field[ind_i])
             pos_c = numpy.append(pos_c, child.mesh.getPosition(nonzero), axis = 0)
             val_c = numpy.append(val_c, field[ind_i][nonzero])
         temp = field[ind]
-        super(PIC_recursive, self).scatterDiffSq(pos, val, array_diff[ind], temp)
         super(PIC_recursive, self).scatter(pos_c, val_c, temp)
+        super(PIC_recursive, self).scatterDiffSq(pos, val, w, array_diff[ind], temp)
         field[ind] += temp
 
     def scatterDensity(self, species):
@@ -408,7 +444,7 @@ class PIC_2D_rm1o_recursive(PIC_recursive, PIC_2D_rm1o):
         species.mesh_values.density *= 0
     
         #scatter particles to the mesh
-        self.scatter(species.part_values.position[:species.part_values.current_n], species.spwt*numpy.ones((species.part_values.current_n)), species.mesh_values.density)
+        self.scatter(species.part_values.position[:species.part_values.current_n], species.part_values.spwt[:species.part_values.current_n], species.mesh_values.density)
         
         #divide by cell volume and add the accumulated charge from material surfaces in the domain
         species.mesh_values.density /= self.mesh.volumes
@@ -420,9 +456,9 @@ class PIC_2D_rm1o_recursive(PIC_recursive, PIC_2D_rm1o):
         #scatter particles to the mesh
         for dim in range(numpy.shape(species.part_values.velocity)[1]):
             self.scatter(species.part_values.position[:species.part_values.current_n], \
-                    species.part_values.velocity[:species.part_values.current_n,dim], species.mesh_values.velocity[:,dim])
+                    species.part_values.velocity[:species.part_values.current_n,dim]*species.part_values.spwt[:species.part_values.current_n], species.mesh_values.velocity[:,dim])
             #Finalizing velocity
-            species.mesh_values.velocity[:,dim] *= numpy.where(species.mesh_values.density < 1e-5, 0.0, species.spwt/species.mesh_values.density/self.mesh.volumes)
+            species.mesh_values.velocity[:,dim] *= numpy.where(species.mesh_values.density < 1e-5, 0.0, 1/species.mesh_values.density/self.mesh.volumes)
 
     def scatterTemperature(self, species):
         #Reset temperature
@@ -431,10 +467,10 @@ class PIC_2D_rm1o_recursive(PIC_recursive, PIC_2D_rm1o):
         for dim in range(numpy.shape(species.part_values.velocity)[1]):
             temp = numpy.zeros_like(species.mesh_values.temperature)
             self.scatterDiffSq(species.part_values.position[:species.part_values.current_n], \
-                    species.part_values.velocity[:species.part_values.current_n, dim], species.mesh_values.velocity[:,dim], temp)
+                    species.part_values.velocity[:species.part_values.current_n, dim], species.part_values.spwt[:species.part_values.current_n], species.mesh_values.velocity[:,dim], temp)
             species.mesh_values.temperature += temp
         #Finalizing temperature
-        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, species.spwt/species.mesh_values.density/self.mesh.volumes*species.m/c.K/2)
+        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, 1/species.mesh_values.density/self.mesh.volumes*species.m/c.K/2)
 
     def scatterFlux(self, species, hit):
         #Prepare fields
@@ -443,9 +479,10 @@ class PIC_2D_rm1o_recursive(PIC_recursive, PIC_2D_rm1o):
         #Parameter to use
         positions = hit[0][:,:2]
         add_info = hit[0][:,2].astype(int)
+        spwts = hit[0][:,3]
         #Scatter flux
-        self.scatter_1D(positions, species.spwt*species.q*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.flux, species.mesh_values.fluxind, add_info)
-        self.scatter_1D(positions, species.spwt*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, spwts*species.q, species.mesh_values.flux, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, spwts, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
         species.mesh_values.flux /= (self.mesh.overall_area_sat)*species.dt
         species.mesh_values.accDensity /= self.mesh.volumes[species.mesh_values.fluxind]
 
@@ -456,9 +493,10 @@ class PIC_2D_rm1o_recursive(PIC_recursive, PIC_2D_rm1o):
         #Parameter to use
         positions = hit[0][:,:2]
         add_info = hit[0][:,2].astype(int)
+        spwts = hit[0][:,3]
         #Scatter flux
-        self.scatter_1D(positions, -species.spwt*species.q*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.outgoing_flux, species.mesh_values.fluxind, add_info)
-        self.scatter_1D(positions, -species.spwt*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, -spwts*species.q, species.mesh_values.outgoing_flux, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, -spwts, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
         species.mesh_values.outgoing_flux /= self.mesh.overall_area_sat*species.dt
         species.mesh_values.accDensity /= self.mesh.volumes[species.mesh_values.fluxind]
 
@@ -500,6 +538,12 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
         super(PIC_recursive, self).__init__(mesh)
         super().__init__(n_children, n_root, self.type)
 
+    def rEqual0_treatment(self, field, acc = 0):
+        field[acc:acc+self.mesh.nx] = field[acc+self.mesh.nx:acc+2*self.mesh.nx]
+        acc += self.mesh.nPoints
+        for child in self.children:
+            child.rEqual0_treatment(field, acc = acc)
+
     def scatter(self, positions, values, field, indices = None, surface = False):
         if self.root == True:
             positions, pos_ind = self.mesh.sortPositionsByMeshes(positions, return_ind = [], surface = surface)
@@ -516,7 +560,6 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
             val = numpy.append(val, field[ind_i][nonzero])
         temp = field[ind]
         super(PIC_recursive, self).scatter(pos, val, temp)
-        temp[:self.mesh.nx] = temp[self.mesh.nx:2*self.mesh.nx]*self.mesh.volumes[0]/self.mesh.volumes[self.mesh.nx]
         field[ind] += temp
 
     def scatter_1D(self, positions, values, field, location, add_info):
@@ -581,25 +624,32 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
         numpy.add.at(field, array_1D, (1-dindex)*values)
         numpy.add.at(field, n_index[filter_1D], dindex[filter_1D]*values[filter_1D])
 
-    def scatterDiffSq(self, positions, values, array_diff, field, indices = None):
+    def scatterDiffSq(self, positions, values, weights, array_diff, field, indices = None):
         if self.root == True:
             positions, pos_ind = self.mesh.sortPositionsByMeshes(positions, return_ind = [])
             values = [values[i] for i in pos_ind]
+            weights = [weights[i] for i in pos_ind]
             indices = self.mesh.sortArrayByMeshes(numpy.arange(len(field)))
         pos = positions.pop(0)
         val = values.pop(0)
+        w = weights.pop(0)
         ind = indices.pop(0)
         pos_c = numpy.zeros((0,numpy.shape(pos)[1]))
         val_c = numpy.zeros((0))
+        pseudo_weight_c = numpy.zeros((0))
         for child in self.children:
             ind_i = copy.copy(indices[0])
-            child.scatterDiffSq(positions, values, array_diff, field, indices = indices)
+            child.scatterDiffSq(positions, values, weights, array_diff, field, indices = indices)
             nonzero = numpy.flatnonzero(field[ind_i])
             pos_c = numpy.append(pos_c, child.mesh.getPosition(nonzero), axis = 0)
             val_c = numpy.append(val_c, field[ind_i][nonzero])
+            pseudo_weight_c = numpy.append(pseudo_weight_c, numpy.ones_like(nonzero))
         temp = field[ind]
-        super(PIC_recursive, self).scatterDiffSq(pos, val, array_diff[ind], temp)
+        temp_2 = numpy.zeros_like(field[ind])
         super(PIC_recursive, self).scatter(pos_c, val_c, temp)
+        super(PIC_recursive, self).scatter(pos_c, pseudo_weight_c, temp_2)
+        temp /= numpy.where(temp_2 != 0, temp_2, 0)
+        super(PIC_recursive, self).scatterDiffSq(pos, val, w, array_diff[ind], temp)
         field[ind] += temp
 
     def scatterDensity(self, species):
@@ -607,10 +657,11 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
         species.mesh_values.density *= 0
     
         #scatter particles to the mesh
-        self.scatter(species.part_values.position[:species.part_values.current_n], species.spwt*numpy.ones((species.part_values.current_n)), species.mesh_values.density)
+        self.scatter(species.part_values.position[:species.part_values.current_n], species.part_values.spwt[:species.part_values.current_n], species.mesh_values.density)
         
         #divide by cell volume and add the accumulated charge from material surfaces in the domain
         species.mesh_values.density /= self.mesh.volumes
+        self.rEqual0_treatment(species.mesh_values.density)
 
     def scatterSpeed(self, species):
         #reset the velocity
@@ -619,9 +670,10 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
         #scatter particles to the mesh
         for dim in range(numpy.shape(species.part_values.velocity)[1]):
             self.scatter(species.part_values.position[:species.part_values.current_n], \
-                    species.part_values.velocity[:species.part_values.current_n,dim], species.mesh_values.velocity[:,dim])
+                    species.part_values.velocity[:species.part_values.current_n,dim]*species.part_values.spwt[:species.part_values.current_n], species.mesh_values.velocity[:,dim])
+            self.rEqual0_treatment(species.mesh_values.velocity[:,dim])
             #Finalizing velocity
-            species.mesh_values.velocity[:,dim] *= numpy.where(species.mesh_values.density < 1e-5, 0.0, species.spwt/species.mesh_values.density/self.mesh.volumes)
+            species.mesh_values.velocity[:,dim] *= numpy.where(species.mesh_values.density < 1e-5, 0.0, 1/species.mesh_values.density/self.mesh.volumes)
 
     def scatterTemperature(self, species):
         #Reset temperature
@@ -630,10 +682,11 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
         for dim in range(numpy.shape(species.part_values.velocity)[1]):
             temp = numpy.zeros_like(species.mesh_values.temperature)
             self.scatterDiffSq(species.part_values.position[:species.part_values.current_n], \
-                    species.part_values.velocity[:species.part_values.current_n, dim], species.mesh_values.velocity[:,dim], temp)
+                    species.part_values.velocity[:species.part_values.current_n, dim], species.part_values.spwt[:species.part_values.current_n], species.mesh_values.velocity[:,dim], temp)
             species.mesh_values.temperature += temp
         #Finalizing temperature
-        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, species.spwt/species.mesh_values.density/self.mesh.volumes*species.m/c.K/3)
+        species.mesh_values.temperature *= numpy.where(species.mesh_values.density < 1e-5, 0.0, 1/species.mesh_values.density/self.mesh.volumes*species.m/c.K/3)
+        self.rEqual0_treatment(species.mesh_values.temperature)
 
     def scatterFlux(self, species, hit):
         #Prepare fields
@@ -642,9 +695,10 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
         #Parameter to use
         positions = hit[0][:,:2]
         add_info = hit[0][:,2].astype(int)
+        spwts = hit[0][:,3]
         #Scatter flux
-        self.scatter_1D(positions, species.spwt*species.q*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.flux, species.mesh_values.fluxind, add_info)
-        self.scatter_1D(positions, species.spwt*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, spwts*species.q, species.mesh_values.flux, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, spwts, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
         species.mesh_values.flux /= (self.mesh.overall_area_sat)*species.dt
         species.mesh_values.accDensity /= self.mesh.volumes[species.mesh_values.fluxind]
 
@@ -655,9 +709,10 @@ class PIC_2D_cm1o_recursive(PIC_recursive, PIC_2D_cm1o):
         #Parameter to use
         positions = hit[0][:,:2]
         add_info = hit[0][:,2].astype(int)
+        spwts = hit[0][:,3]
         #Scatter flux
-        self.scatter_1D(positions, -species.spwt*species.q*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.outgoing_flux, species.mesh_values.fluxind, add_info)
-        self.scatter_1D(positions, -species.spwt*numpy.ones((numpy.shape(positions)[0])), species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, -spwts*species.q, species.mesh_values.outgoing_flux, species.mesh_values.fluxind, add_info)
+        self.scatter_1D(positions, -spwts, species.mesh_values.accDensity, species.mesh_values.fluxind, add_info)
         species.mesh_values.outgoing_flux /= self.mesh.overall_area_sat*species.dt
         species.mesh_values.accDensity /= self.mesh.volumes[species.mesh_values.fluxind]
 

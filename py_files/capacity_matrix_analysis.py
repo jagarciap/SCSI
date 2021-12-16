@@ -32,7 +32,7 @@ from timing import Timing
 # Preliminary simple analysis
 ## ---------------------------------------------------------------------------------------------------------------
 
-filename = 'inv_capacity_matrix_2021-06-08_21h02m.txt'
+filename = 'inv_capacity_matrix_2021-04-16_19h21m.txt'
 
 cwd = os.getcwd()
 filepath = os.path.join(cwd, "data", filename)

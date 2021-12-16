@@ -50,7 +50,7 @@ class Inner_1D_HET(Inner_1D_Rectangular):
     #       metallic section of the thruster and are kept at potential 0. 
     def applyElectricBoundary(self, e_field):
         values = numpy.where(numpy.isin(self.location, self.exit_pot_nodes), self.exit_pot, 0.0)
-        e_field.dirichlet(values, self, e_field.pic.mesh.nx, e_field.pic.mesh.ny, e_field.pic.mesh.dx, e_field.pic.mesh.dy)
+        e_field.dirichlet(e_field.potential[self.location]+values, self, e_field.pic.mesh.nx, e_field.pic.mesh.ny, e_field.pic.mesh.dx, e_field.pic.mesh.dy)
 
 #       +createDistributionAtBorder(Motion_Solver part_solver, Species species, [double] delta_n): (([double,double] pos, [int] border), [int] repeats) =
 #           The function creates particle positions of 'species' along the region between rmin and rmax, under a uniform distribution with a surface density 'delta_n', where
@@ -104,4 +104,4 @@ class Inner_1D_HET(Inner_1D_Rectangular):
             hit_1 = 2*numpy.ones_like(pos_1[:,1], dtype = numpy.uint8)[:,None]
 
         repeats = numpy.ones(numpy.shape(hit_1)[0], dtype = numpy.uint8)
-        return (numpy.append(pos_1, hit_1, axis = 1),), repeats
+        return (numpy.append(numpy.append(pos_1, hit_1, axis = 1), species.spwt*numpy.ones_like(hit_1), axis = 1),), repeats

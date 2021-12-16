@@ -2,6 +2,7 @@ import constants as c
 import mesh
 import pic
 import field
+import particle_reformer
 from Boundaries.inner_2D_rectangular import Inner_2D_Rectangular
 from Boundaries.outer_1D_rectangular import Outer_1D_Rectangular
 from Boundaries.outer_2D_rectangular import Outer_2D_Rectangular
@@ -20,7 +21,6 @@ def mesh_setup(filelines):
     assert line == '{', "Error reading the file. A \"{\" was expected. "+line+" was printed instead"
     line = filelines.pop(0)
     new_dic = {}
-    #NOTE: I think it works right
     while line != '}':
         key, val = map(lambda x: x.strip(' \t'), line.split(sep = '='))
         if key == 'mesh':
@@ -59,6 +59,15 @@ def mesh_setup(filelines):
                 key, val = map(lambda x: x.strip( ' \t'), line.split(sep = '='))
                 new_dic['field_args'][key] = eval(val)
                 line = filelines.pop(0).strip(' \t')
+        elif key == 'particle_reformer':
+            new_dic[key] = eval('particle_reformer.'+val)
+            assert filelines.pop(0).strip(' \t') == '{', "Error reading the file. A \'{\' was expected"
+            new_dic['particle_reformer_args'] = {}
+            line = filelines.pop(0).strip(' \t')
+            while line != '}':
+                key, val = map(lambda x: x.strip( ' \t'), line.split(sep = '='))
+                new_dic['particle_reformer_args'][key] = eval(val)
+                line = filelines.pop(0).strip(' \t')
         line = filelines.pop(0).strip(' \t')
 
     ## Creation and linking of objects
@@ -75,6 +84,7 @@ def mesh_setup(filelines):
             new_dic['mesh_args']['children'].append(obj_list[i][0])
             new_dic['pic_args']['children'].append(obj_list[i][1])
             new_dic['field_args']['children'].append(obj_list[i][2])
+            new_dic['particle_reformer_args']['children'].append(obj_list[i][3])
 
     #Deleting linked objects
     obj_list = obj_list[del_ind+1:] if del_ind != None else obj_list
@@ -88,9 +98,11 @@ def mesh_setup(filelines):
     pic = new_dic['pic'](*new_dic['pic_args'].values())
     new_dic['field_args']['pic'] = pic
     field = new_dic['field'](*new_dic['field_args'].values())
+    new_dic['particle_reformer_args']['mesh'] = mesh
+    particle_reformer = new_dic['particle_reformer'](*new_dic['particle_reformer_args'].values())
 
     #Finalizing the method
-    obj_list.insert(0, (mesh, pic, field))
+    obj_list.insert(0, (mesh, pic, field, particle_reformer))
     return obj_list
 
 

@@ -150,6 +150,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.xmin < hit, hit < self.xmax))[0]
             coord = numpy.append(hit[hit_ind][:,None], numpy.append(self.ymin*numpy.ones_like((hit_ind))[:,None],\
                                                           numpy.zeros_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+            coord = numpy.append(coord, species.part_values.spwt[ind[botind[hit_ind]]][:,None], axis = 1)
             vel = copy.copy(species.part_values.velocity[ind[botind[hit_ind]],1])
             tan_vel = copy.copy(species.part_values.velocity[ind[botind[hit_ind]],0])
             cos = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -162,6 +163,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.ymin < hit, hit < self.ymax))[0]
             coord_l = numpy.append(self.xmin*numpy.ones_like((hit_ind))[:,None], numpy.append(hit[hit_ind][:,None],\
                                     3*numpy.ones_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+            coord_l = numpy.append(coord_l, species.part_values.spwt[ind[leftind[hit_ind]]][:,None], axis = 1)
             vel_l = species.part_values.velocity[ind[leftind[hit_ind]], 0]
             tan_vel_l = species.part_values.velocity[ind[leftind[hit_ind]], 1]
             cos_l = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -173,6 +175,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.ymin < hit, hit < self.ymax))[0]
             coord_r = numpy.append(self.xmax*numpy.ones_like((hit_ind))[:,None], numpy.append(hit[hit_ind][:,None],\
                                     numpy.ones_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+            coord_r = numpy.append(coord_r, species.part_values.spwt[ind[rightind[hit_ind]]][:,None], axis = 1)
             vel_r = -species.part_values.velocity[ind[rightind[hit_ind]], 0]
             tan_vel_r = species.part_values.velocity[ind[rightind[hit_ind]], 1]
             cos_r = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -184,6 +187,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.xmin < hit, hit < self.xmax))[0]
             coord_t = numpy.append(hit[hit_ind][:,None], numpy.append(self.ymax*numpy.ones_like((hit_ind))[:,None],\
                                                             2*numpy.ones_like((hit_ind), dtype = numpy.short)[:,None], axis = 1), axis = 1)
+            coord_t = numpy.append(coord_t, species.part_values.spwt[ind[topind[hit_ind]]][:,None], axis = 1)
             vel_t = -species.part_values.velocity[ind[topind[hit_ind]], 1]
             tan_vel_t = species.part_values.velocity[ind[topind[hit_ind]], 0]
             cos_t = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -220,6 +224,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.xmin < hit, hit < self.xmax))[0]
             coord = numpy.append(hit[hit_ind][:,None], numpy.append(self.ymin*numpy.ones_like((hit_ind))[:,None],\
                                                           numpy.zeros_like((hit_ind)[:,None], dtype = numpy.short), axis = 1), axis = 1)
+            coord = numpy.append(coord, species.part_values.spwt[ind[botind[hit_ind]]][:,None], axis = 1)
             vel = -copy.copy(species.part_values.velocity[ind[botind[hit_ind]],1])
             #tan_vel = copy.copy(species.part_values.velocity[ind[botind[hit_ind]],0])
             #cos = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -231,6 +236,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.ymin < hit, hit < self.ymax))[0]
             coord_l = numpy.append(self.xmin*numpy.ones_like((hit_ind))[:,None], numpy.append(hit[hit_ind][:,None],\
                                     3*numpy.ones_like((hit_ind)[:,None], dtype = numpy.short), axis = 1), axis = 1)
+            coord_l = numpy.append(coord_l, species.part_values.spwt[ind[leftind[hit_ind]]][:,None], axis = 1)
             vel_l = -species.part_values.velocity[ind[leftind[hit_ind]], 0]
             #tan_vel_l = species.part_values.velocity[ind[leftind[hit_ind]], 1]
             #cos_l = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -242,6 +248,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.ymin < hit, hit < self.ymax))[0]
             coord_r = numpy.append(self.xmax*numpy.ones_like((hit_ind))[:,None], numpy.append(hit[hit_ind][:,None],\
                                     numpy.ones_like((hit_ind)[:,None], dtype = numpy.short), axis = 1), axis = 1)
+            coord_r = numpy.append(coord_r, species.part_values.spwt[ind[rightind[hit_ind]]][:,None], axis = 1)
             vel_r = species.part_values.velocity[ind[rightind[hit_ind]], 0]
             #tan_vel_r = species.part_values.velocity[ind[rightind[hit_ind]], 1]
             #cos_r = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -253,6 +260,7 @@ class Inner_2D_Rectangular(Boundary):
             hit_ind = numpy.nonzero(numpy.logical_and(self.xmin < hit, hit < self.xmax))[0]
             coord_t = numpy.append(hit[hit_ind][:,None], numpy.append(self.ymax*numpy.ones_like((hit_ind))[:,None],\
                                                             2*numpy.ones_like((hit_ind)[:,None], dtype = numpy.short), axis = 1), axis = 1)
+            coord_t = numpy.append(coord_t, species.part_values.spwt[ind[topind[hit_ind]]][:,None], axis = 1)
             vel_t = species.part_values.velocity[ind[topind[hit_ind]], 1]
             #tan_vel_t = species.part_values.velocity[ind[topind[hit_ind]], 0]
             #cos_t = 1/numpy.sqrt(slope[hit_ind]*slope[hit_ind]+1)
@@ -487,7 +495,8 @@ class Inner_2D_Rectangular(Boundary):
             self.updateTrackers(species, np)
 
             #Calculating outgoing flux
-            hit = (numpy.append(pos_copy, border[:,None], axis = 1), numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
+            hit = (numpy.append(numpy.append(pos_copy, border[:,None], axis = 1), species.spwt*numpy.ones_like((border))[:,None],axis = 1),\
+                    numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
             part_solver.pic.scatterOutgoingFlux(species, hit)
 
             print("Injected particles: ", np)
@@ -552,7 +561,8 @@ class Inner_2D_Rectangular(Boundary):
             self.updateTrackers(species, np)
 
             #Calculating outgoing flux
-            hit = (numpy.append(pos_copy, border[:,None], axis = 1), numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
+            hit = (numpy.append(numpy.append(pos_copy, border[:,None], axis = 1), species.spwt*numpy.ones_like(border)[:,None],axis = 1),\
+                    numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
             part_solver.pic.scatterOutgoingFlux(species, hit)
 
             print("Injected particles: ", np)

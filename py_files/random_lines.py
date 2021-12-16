@@ -19,3 +19,14 @@ plt.plot(bar[:-1],vol*7e9/5e7, marker = '.', label = 'theory')
 plt.plot(bar[:-1], freq, marker = '.', label = 'real')
 plt.legend()
 plt.show()
+
+
+plt.scatter(new_positions[0][:,0], new_positions[0][:,1],  marker = '.', c=new_spwts[0][:])
+plt.colorbar()
+plt.show()
+
+import matplotlib.pyplot as plt
+cm = plt.cm.get_cmap('rainbow')
+plot = plt.scatter(pos[:,0],pos[:,1], marker = '.', c = spwt/max(spwt), cmap = cm)
+plt.colorbar(plot)
+plt.show()

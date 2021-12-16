@@ -49,7 +49,7 @@ class System(object):
         self.at = {}
         self.at['ts'] = 0
         #TODO: Change later
-        self.at['mesh'], self.at['pic'], self.at['e_field'] = mesh_file_reader('2021_05_01.txt')
+        self.at['mesh'], self.at['pic'], self.at['e_field'], self.at['part_reformer'] = mesh_file_reader('2021_05_01.txt')
         self.at['mesh'].print()
         self.at['electrons'] = Electron_SW(0.0, c.E_SPWT, c.E_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
         self.at['electrons_HET'] = Electron_HET(c.HET_E_T, 0.0, c.HET_E_SPWT, c.HET_E_SIZE, c.DIM, c.DIM, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
@@ -320,6 +320,19 @@ try:
 
         #Solving the fields
         system.at['e_field'].computeField([system.at['ions_HET'], system.at['protons'], system.at['electrons'], system.at['electrons_HET'], system.at['photoelectrons'], system.at['see']])
+
+        #Particle reforming for the different species
+        if system.at['ts']%c.PR_E_TS == 0:
+            system.at['part_reformer'].computeParticleReform(system.at['electrons'])
+            system.at['part_reformer'].computeParticleReform(system.at['electrons_HET'])
+            system.at['part_reformer'].computeParticleReform(system.at['photoelectrons'])
+            system.at['part_reformer'].computeParticleReform(system.at['see'])
+
+        if system.at['ts']%c.PR_P_TS == 0:
+            system.at['part_reformer'].computeParticleReform(system.at['protons'])
+
+        if system.at['ts']%c.PR_ION_TS == 0:
+            system.at['part_reformer'].computeParticleReform(system.at['ions_HET'])
     
         # Electron motion
         if system.at['ts']%c.E_TS == 0:
@@ -381,3 +394,4 @@ out.savePickle(system.at, system.arrangePickle())
 print('Simulation finished')
 print('Last state succesfully saved')
 sys.exit()
+#Holi

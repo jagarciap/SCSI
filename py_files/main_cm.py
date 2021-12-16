@@ -49,7 +49,7 @@ class System(object):
         self.at = {}
         self.at['ts'] = 0
         #TODO: Change later
-        self.at['mesh'], self.at['pic'], self.at['e_field'] = mesh_file_reader('2021_06_30_cm.txt')
+        self.at['mesh'], self.at['pic'], self.at['e_field'], self.at['part_reformer'] = mesh_file_reader('2021_11_29.txt')
         self.at['mesh'].print()
         self.at['electrons'] = Electron_SW(0.0, c.E_SPWT, c.E_SIZE, c.DIM, 3, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
         self.at['photoelectrons'] = Photoelectron(c.PHE_T, c.PHE_FLUX, 0.0, c.PHE_SPWT, c.PHE_SIZE, c.DIM, 3, self.at['mesh'].accPoints, self.at['mesh'].overall_location_sat, c.NUM_TRACKED)
@@ -67,7 +67,7 @@ class System(object):
 
     def arrangeVTK(self):
         #return ('ts', 'e_field', 'electrons', 'protons', 'user')
-        return ('ts', 'e_field', 'm_field', 'electrons', 'photoelectrons', 'see', 'protons')
+        return ('ts', 'e_field', 'm_field', 'electrons', 'photoelectrons', 'see', 'protons', 'part_reformer')
 
     def arrangeParticlesTXT(self):
         #return ('ts', 'electrons', 'protons', 'user')
@@ -175,10 +175,14 @@ drift_p_vel = [out_drift_p_vel]
 #    boundary.injectParticlesDummyBox(boundary.location, system.at['part_solver'], system.at['e_field'], system.at['electrons'], e_n[i], thermal_e_vel[i], drift_e_vel[i])
 #    boundary.injectParticlesDummyBox(boundary.location, system.at['part_solver'], system.at['e_field'], system.at['protons'], p_n[i], thermal_p_vel[i], drift_p_vel[i])
 
-system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
-                                                        system.at['e_field'], system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0])
-system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
-                                                        system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0])
+system.at['mesh'].boundaries[0].injectParticlesDummyBox_PRon(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+                                                        system.at['e_field'], system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
+system.at['mesh'].boundaries[0].injectParticlesDummyBox_PRon(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+                                                        system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
+#system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+#                                                        system.at['e_field'], system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
+#system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+#                                                        system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
 flux, n_delta_phe = system.at['mesh'].boundaries[1].createDistributionAtBorder(system.at['mesh'].boundaries[1].left, system.at['part_solver'], system.at['photoelectrons'], in_phe_n)
 system.at['mesh'].boundaries[1].injectParticlesAtPositions_smooth(flux, system.at['part_solver'], \
                                                            system.at['e_field'], system.at['photoelectrons'], n_delta_phe, in_thermal_phe_vel, system.at['photoelectrons'].dt)
@@ -221,18 +225,24 @@ system.at['part_solver'].updateMeshValues(system.at['protons'], extent = 1, scat
 ## ---------------------------------------------------------------------------------------------------------------
 
 def SWE():
-    if system.at['ts']%c.VTK_TS == 0:
+    if system.at['ts'] == 0:
+        advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 0, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
+    elif system.at['ts']%c.VTK_TS == 0:
         advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
     else:
         advance_dict_e = system.at['part_solver'].advance(system.at['electrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0, types_boundary = ['open', 'mixed'], albedo = c.E_ALBEDO)
 
     #Injection of solar wind electrons at the outer boundary
-    system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
-                                                            system.at['e_field'],system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0])
+    system.at['mesh'].boundaries[0].injectParticlesDummyBox_PRon(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+                                                            system.at['e_field'],system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
+    #system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+    #                                                        system.at['e_field'],system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
     return advance_dict_e
 
 def PHE():
-    if system.at['ts']%c.VTK_TS == 0:
+    if system.at['ts'] == 0:
+        system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 0)
+    elif system.at['ts']%c.VTK_TS == 0:
         system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
     else:
         system.at['part_solver'].advance(system.at['photoelectrons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
@@ -243,7 +253,9 @@ def PHE():
                                                                        system.at['e_field'], system.at['photoelectrons'], n_delta_phe, in_thermal_phe_vel, system.at['photoelectrons'].dt)
 
 def SEE(advance_dict_e):
-    if system.at['ts']%c.VTK_TS == 0:
+    if system.at['ts'] == 0:
+        system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 0)
+    elif system.at['ts']%c.VTK_TS == 0:
         system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1)
     else:
         system.at['part_solver'].advance(system.at['see'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
@@ -255,14 +267,18 @@ def SEE(advance_dict_e):
 
 def SWP():
     #Proton motion
-    if system.at['ts']%c.VTK_TS == 0:
+    if system.at['ts'] == 0:
+        system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 0)
+    elif system.at['ts']%c.VTK_TS == 0:
         system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 1)
     else:
         system.at['part_solver'].advance(system.at['protons'], [system.at['e_field']], [system.at['m_field']], extent = 1, update_dic = 0)
     #for i, boundary in enumerate(system.at['mesh'].boundaries):
     #    boundary.injectParticlesDummyBox(boundary.location, system.at['part_solver'], system.at['e_field'], system.at['protons'], p_n[i], thermal_p_vel[i], drift_p_vel[i])
-    system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
-                                                            system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0])
+    system.at['mesh'].boundaries[0].injectParticlesDummyBox_PRon(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+                                                            system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
+    #system.at['mesh'].boundaries[0].injectParticlesDummyBox(system.at['mesh'].boundaries[0].location, system.at['part_solver'], \
+    #                                                        system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0], n_part = system.at['part_reformer'].partoptimum*2)
 
 ## ---------------------------------------------------------------------------------------------------------------
 # Main loop
@@ -279,7 +295,7 @@ try:
 
         #Solving the fields
         system.at['e_field'].computeField([system.at['protons'], system.at['electrons'], system.at['photoelectrons'], system.at['see']])
-    
+
         # Electron motion
         if system.at['ts']%c.E_TS == 0:
             advance_dict_e = SWE()
@@ -290,17 +306,29 @@ try:
         if system.at['ts']%c.P_TS == 0:
             SWP()
 
+        #Particle reforming for the different species
+        if system.at['ts']%c.PR_E_TS == 0:
+        #if system.at['ts']%c.PR_E_TS == 0 and system.at['ts'] != 0:
+            system.at['part_reformer'].computeParticleReform(system.at['electrons'])
+            system.at['part_reformer'].computeParticleReform(system.at['photoelectrons'])
+            system.at['part_reformer'].computeParticleReform(system.at['see'])
+
+        if system.at['ts']%c.PR_P_TS == 0:
+        #if system.at['ts']%c.PR_P_TS == 0 and system.at['ts'] != 0:
+            system.at['part_reformer'].computeParticleReform(system.at['protons'])
+
         #Output vtk
-        if system.at['ts']%c.VTK_TS == 0:
+        if system.at['ts']%c.VTK_TS == 0 and system.at['ts'] != 0:
             system.at['part_solver'].updateMeshValues(old_system.at['electrons'], extent = 2)
             system.at['part_solver'].updateMeshValues(old_system.at['photoelectrons'], extent = 2)
             system.at['part_solver'].updateMeshValues(old_system.at['see'], extent = 2)
             system.at['part_solver'].updateMeshValues(old_system.at['protons'], extent = 2)
             out.saveVTK(system.at['mesh'], old_system.at, system.arrangeVTK())
-        if system.at['ts']%100000 == 100000-1:
-            out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
-        if system.at['ts']%100000 == 100000-1:
-            out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'], old_system.at['photoelectrons'], old_system.at['see'])
+
+        #if system.at['ts']%100000 == 100000-1:
+        #    out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
+        #if system.at['ts']%100000 == 100000-1:
+        #    out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'], old_system.at['photoelectrons'], old_system.at['see'])
     
         #Updating previous state
         deepcopy = Timing(copy.deepcopy)

@@ -121,6 +121,7 @@ def floating_potential_p(inv_capacity, capacity, charge, volumes, q):
     d_n = d_q/q/volumes
     return phi_c, d_q, d_n
 
+#NOTE: whaaaat, permitiviy should be 1/permittivity
 @nb.guvectorize([(nb.float64[:], nb.float64[:], nb.float64[:], nb.float64, nb.float64[:])], "(n),(n),(n),()->(n)", nopython=True, cache = True, target = "parallel")
 def induced_charge_p(field_x, field_y, area, permittivity, res):
     for i in range(len(field_x)):

@@ -139,6 +139,50 @@ class Outer_2D_Cylindrical(Outer_2D_Rectangular):
         #Adding particles
         self.addParticles(species,pos,vel)
 
+#       +createDummyBox_PRon([ind]location, PIC pic, Species species, [double] delta_n, [double] n_vel, [double] shift_vel) = create the dummy boxes with particles in them.
+#           This function differs from 'createDummyBox_PRon' in that this function assumes that the module Particle_Reformer is being used, and instead of introducing a varying
+#           number of particles, all with the same SPWT, for different particle numbers, it introduces always the optimum amount of particles per cell, changing the SPWT of the
+#           created particles. 'n_part' is the number of particles created per node; it can be a number, or an array with the same size as 'location'.
+#       NOTE: Under this new paradigm, property 'species.mesh_values.residuals' becomes the actual number of particles being left out, instead of a fraction of a super particle.
+#           It should be fine to change this here, since it is the only function that uses the property. However, if this becomes more permanent, some clarification/documentation
+#           should be made about this.
+    def createDummyBox_PRon(self, location, pic, species, delta_n, n_vel, shift_vel, index=None, n_part = 100):
+        #Volumes without border consideration
+        y = (numpy.arange(pic.mesh.nPoints)//pic.mesh.nx)*pic.mesh.dy+pic.mesh.ymin
+        if pic.mesh.ymin == 0.0:
+            #It is /8 instead of /4 in order to create particles only if r>=0
+            y[:pic.mesh.nx] = pic.mesh.dy/8
+        dv = 2*numpy.pi*y*pic.mesh.dy*pic.mesh.dx
+        #New particles to be stored
+        mpf_new = numpy.zeros((pic.mesh.nPoints))
+        loc = numpy.unique(location)
+        spwt = (dv[loc]*delta_n/n_part).astype(int)
+        numpy.add.at(mpf_new, loc, n_part)
+        mp_new = mpf_new.astype(int)
+        #Preparing indexes for numpy usage
+        index = numpy.repeat(numpy.arange(len(loc)), mp_new[loc])
+        #Setting up positions
+        pos = pic.mesh.getPosition(loc)
+        rmin = numpy.where(pos[:,1] == 0.0, pos[:,1], pos[:,1]-pic.mesh.dy/2)
+        rmax = pos[:,1]+pic.mesh.dy/2
+        pos = pos[index]
+        pos[:,1] = cmt.randomYPositions_2D_cm(mp_new[loc], rmin, rmax)
+        random_2 = numpy.random.rand(numpy.shape(pos)[0])
+        pos[:,0] += (random_2-0.5)*pic.mesh.dx
+        #Deleting unwanted particles
+        if self.ymin == 0.0:
+            mask = numpy.flatnonzero(numpy.logical_and(numpy.logical_or(numpy.logical_or(\
+                pos[:,0] < self.xmin, pos[:,0] > self.xmax), pos[:,1] > self.ymax), pos[:,1] >= self.ymin))
+        else:
+            mask = numpy.flatnonzero(numpy.logical_or(numpy.logical_or(numpy.logical_or(\
+                pos[:,0] < self.xmin, pos[:,0] > self.xmax), pos[:,1] > self.ymax), pos[:,1] < self.ymin))
+        pos = pos[mask,:]
+        spwt = spwt[index[mask]]
+        #Setting up velocities
+        vel = self.sampleIsotropicVelocity(n_vel[index[mask]], numpy.ones_like(pos[:,0], dtype = 'uint8'))+shift_vel[index[mask],:]
+        #Adding particles
+        self.addParticles(species,pos,vel,spwt = spwt)
+
 #       +injectParticlesDummyBox([int] location, PIC pic, Field field, Species species, [double] delta_n, [double] n_vel, [double] shift_vel) =
 #               Inject the particles in location indices by creating dummy boxes around them, creating particles
 #       	inside of them, moving the particles, and then adding the ones that entered into the computational domain.
@@ -190,6 +234,62 @@ class Outer_2D_Cylindrical(Outer_2D_Rectangular):
         part_solver.initialConfiguration(ghost, field)
         #Adding particles
         self.addParticles(species, ghost.part_values.position[:ghost.part_values.current_n,:], ghost.part_values.velocity[:ghost.part_values.current_n,:])
+        self.updateTrackers(species, ghost.part_values.current_n)
+        print("Injected particles: ",ghost.part_values.current_n)
+        print("Total {}".format(species.name),": ", species.part_values.current_n)
+
+#       +injectParticlesDummyBox_PRon([int] location, PIC pic, Field field, Species species, [double] delta_n, [double] n_vel, [double] shift_vel, int/[int] n_part) =
+#               Inject the particles in location indices by creating dummy boxes around them, creating particles
+#       	inside of them, moving the particles, and then adding the ones that entered into the computational domain. Same function as 'injectParticlesDummyBox', 
+#               but using createDummyBox_PRon, meaning that particles of different SPWTs are created, and the injected number of particles is always the same.
+    @Timing
+    def injectParticlesDummyBox_PRon(self, location, part_solver, field, species, delta_n, n_vel, shift_vel, n_part = 100):
+        # Creating temporary species
+        ghost = Species("temporary species", species.dt, species.q, species.m, species.debye, species.spwt, \
+                        int(species.part_values.max_n/10), species.pos_dim, species.vel_dim, species.mesh_values.nPoints, numpy.asarray([0]))
+        ghost.mesh_values.residuals = species.mesh_values.residuals
+        self.createDummyBox_PRon(location, part_solver.pic, ghost, delta_n, n_vel, shift_vel, n_part = n_part)
+        species.mesh_values.residuals[location] = copy.copy(ghost.mesh_values.residuals[location])
+        #Preparing variables
+        np = ghost.part_values.current_n
+        xmin = self.xmin
+        xmax = self.xmax
+        ymin = self.ymin
+        ymax = self.ymax
+        #Entering particles into the mesh and adjusting them according to motion_solver
+        ghost.part_values.position[:np,:] += ghost.part_values.velocity[:np,:2]*ghost.dt
+        ind = numpy.flatnonzero(af.geq_2D_p(ghost.part_values.position[:np,:], xmin, xmax, ymin, ymax))
+
+        self.removeParticles(ghost, ind)
+        ##Test
+        #np = ghost.part_values.current_n
+        ##Test positioning
+        #fig = plt.figure(figsize=(8,8))
+        #plt.scatter(ghost.part_values.position[:np, 0], ghost.part_values.position[:np,1], marker = '.')
+        #plt.title(self.type+" - "+species.name)
+        #plt.show()
+        ##Test velocity
+        #fig = plt.figure(figsize=(8,8))
+        #datamag = plt.hist(numpy.sqrt((ghost.part_values.velocity[:np,0]-shift_vel[0,0])*(ghost.part_values.velocity[:np,0]-shift_vel[0,0])+ \
+        #                              ghost.part_values.velocity[:np,1]*ghost.part_values.velocity[:np,1]), 41, alpha=0.5, label=species.name)
+        #plt.axvline(x=c.P_V_TH_MP, label = 'protons', color = 'red')
+        #plt.axvline(x=c.E_V_TH_MP, label = 'electrons', color = 'blue')
+        #plt.axvline(x=c.PHE_V_TH_MP, label = 'photoelectrons', color = 'black')
+        #plt.axvline(x=c.SEE_V_TH_MP, label = 'SEE', color = 'purple')
+        #plt.title(self.type+" - "+species.name)
+        #plt.legend()
+        #plt.show()
+        #pdb.set_trace()
+        #Test with more precision
+        #filename = self.type+"_"+species.name+".txt"
+        #with open(filename, 'ab') as f:
+        #    np = ghost.part_values.current_n
+        #    array = numpy.append(ghost.part_values.position[:np,:], ghost.part_values.velocity[:np,:], axis = 1)
+        #    numpy.savetxt(f, array)
+
+        part_solver.initialConfiguration(ghost, field)
+        #Adding particles
+        self.addParticles(species, ghost.part_values.position[:ghost.part_values.current_n,:], ghost.part_values.velocity[:ghost.part_values.current_n,:], spwt = ghost.part_values.spwt[:ghost.part_values.current_n])
         self.updateTrackers(species, ghost.part_values.current_n)
         print("Injected particles: ",ghost.part_values.current_n)
         print("Total {}".format(species.name),": ", species.part_values.current_n)

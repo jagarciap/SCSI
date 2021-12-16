@@ -38,6 +38,8 @@ from solver import location_indexes_inv
 #           depending on the actual type of mesh subclass used.
 #	+arrayToIndex([ind] array): [int, int] = For the indexes in the 1D array, obtain the indexes used for the particular mesh.
 #	+indexToArray([ind, ind] index): [int] = For the indexes used for the particular mesh, obtain the 1D version for the array.
+#       +createDistributionInCell(int ind, int num): [double, ..., double] position = Produces 'num' random positions uniformly distributed in the cell 'ind'.
+#       +checkCellAssignment([int] ind): [Boolean] = For each index in 'ind' it checkes whether that node correspond to a cell in the mesh.
 #       +reverseVTKOrdering(array): array = The array received as argument is ordered in such a way it can be stored ina VTK file.
 #           The result is returned as a new array.
 #       +vtkOrdering(array): array = The array received as argument comes with vtk ordering and is reshaped to be stored properly in the code.
@@ -65,6 +67,9 @@ class Mesh (object):
         pass
 
     def indexToArray(self, ind):
+        pass
+
+    def createDistributionInCell( ind, num):
         pass
 
     def vtkOrdering(self, array):
@@ -113,7 +118,6 @@ class Mesh (object):
 #           'Ordered rule'. These results can be either obtained by passing a list object to seedList or by capturing the return of the method, which is only possible if the node that called the function
 #           is the root of the tree.
 #       +sortPositionsByMeshes([double, double] pos, List seedList): List = This function receives an array of positions and organize the positions in ndarrays stored in a list ordered by the 'Ordered rule'.
-
 class Mesh_recursive(object):
     def __init__(self, n_children, n_root, n_id, n_start_ind, n_type):
         n_type += " - Recursive"
@@ -529,6 +533,33 @@ class Mesh_2D_rm (Mesh):
         ind = ind.astype('uint32')
         return af.indexToArray_p(ind[:,0], ind[:,1], nx)
 
+#       +createDistributionInCell([int] ind, [int] num): [double, ..., double] position = Produces 'num' random positions uniformly distributed in every cell in 'ind'.
+    def createDistributionInCell(self, ind, num, prec = 10**(-c.INDEX_PREC)):
+        pos = numpy.random.rand(numpy.sum(num), 2)
+        pos0 = numpy.repeat(self.getPosition(ind), num, axis = 0)
+        check = numpy.logical_and(pos0[:,0] < self.xmax, pos0[:,1] < self.ymax)
+        if numpy.all(check):
+            pos[:,0] *= (self.dx-prec)
+            pos[:,1] *= (self.dy-prec)
+            return pos0+pos 
+        else:
+            raise Exception('These indexes do not correspond to cells inside the mesh: '+ numpy.flatnonzero(numpy.logical_not(check)))
+
+#       +checkCellAssignment([int] ind): [Boolean] = For each index in 'ind' it checkes whether that node correspond to a cell in the mesh.
+    def checkCellAssignment(self, ind):
+        bools = numpy.ones_like(ind, dtype = numpy.int8)
+        bools *= numpy.where(ind >= self.nx*(self.ny-1), 0, 1)
+        bools *= numpy.where(ind%self.nx == self.nx-1, 0, 1)
+        bools = bools.astype(numpy.bool_)
+        return bools
+
+    def particleReformNodes(self):
+        mask = numpy.ones((self.nPoints), dtype = numpy.bool_)
+        mask[self.location] = False
+        mask[self.nx*(self.ny-2):self.nx*(self.ny-1)-1] = False
+        mask[self.nx-2::self.nx] = False
+        return mask
+
 #       +vtkOrdering(array): array = The array received as argument is ordered in such a way it can be stored ina VTK file.
 #           The result is returned as a new array.
     def vtkOrdering(self, array):
@@ -821,6 +852,33 @@ class Mesh_2D_rm_sat (Mesh_2D_rm):
             test = location_indexes_inv([self.sat_i], store = True, location = self.location_sat)[0]
             assert test == 0, "location_indexes_inv is not correctly set up"
 
+    def particleReformNodes(self):
+        mask = super().particleReformNodes()
+        mask[self.boundaries[1].ind_inner] = False
+        mask[self.boundaries[1].location] = False
+        bottom = True if self.sat_i > self.nx else False
+        left = True if self.sat_i%self.nx != 0 else False
+        right = True if (self.sat_i+self.nxsat-1)%self.nx != self.nx-1 else False
+        top = True if self.sat_i+self.nysat*self.nx < self.nPoints else False
+        if bottom:
+            mask[self.sat_i-self.nx:self.sat_i-self.nx+self.nxsat] = False
+        if left:
+            mask[self.sat_i-1:self.sat_i-1+self.nx*self.nysat:self.nx] = False
+        if right:
+            mask[self.sat_i+self.nxsat:self.sat_i+self.nxsat+self.nx*self.nysat:self.nx] = False
+        if top:
+            mask[self.sat_i+self.nx*self.nysat:self.sat_i+self.nx*self.nysat+self.nxsat] = False
+        if bottom and left:
+            mask[self.sat_i-self.nx-1] = False
+        if bottom and right:
+            mask[self.sat_i+self.nxsat] = False
+        if top and left:
+            mask[self.sat_i-1+self.nx*self.nysat] = False
+        if top and right:
+            mask[self.sat_i+self.nxsat+self.nx*self.nysat] = False
+
+        return mask
+
 
 #Mesh_2D_rm_sat_HET (Inherits from Mesh_2D_rm_sat):
 #
@@ -1090,6 +1148,14 @@ class Mesh_2D_cm (Mesh_2D_rm):
         if len(self.location_sat) > 0:
             test = location_indexes_inv([self.location_sat[0]], store = True, location = self.location_sat)[0]
             assert test == 0, "location_indexes_inv is not correctly set up"
+
+    def particleReformNodes(self):
+        mask = numpy.ones((self.nPoints), dtype = numpy.bool_)
+        mask[self.location] = False
+        mask[:self.nx] = False
+        mask[self.nx*(self.ny-2):self.nx*(self.ny-1)-1] = False
+        mask[self.nx-2::self.nx] = False
+        return mask
 
 #       +loadSpeciesVTK(self, species) = It creates particles around every node that can match the preoladed density and velocity of that node. This will depend on each type of mesh.
     def loadSpeciesVTK(self, species, pic, prec = 10**(-c.INDEX_PREC)):
@@ -1362,6 +1428,33 @@ class Mesh_2D_cm_sat (Mesh_2D_cm):
         if len(self.location_sat) > 0:
             test = location_indexes_inv([self.sat_i], store = True, location = self.location_sat)[0]
             assert test == 0, "location_indexes_inv is not correctly set up"
+
+    def particleReformNodes(self):
+        mask = super().particleReformNodes()
+        mask[self.boundaries[1].ind_inner] = False
+        mask[self.boundaries[1].location] = False
+        bottom = True if self.sat_i > self.nx else False
+        left = True if self.sat_i%self.nx != 0 else False
+        right = True if (self.sat_i+self.nxsat-1)%self.nx != self.nx-1 else False
+        top = True if self.sat_i+self.nysat*self.nx < self.nPoints else False
+        if bottom:
+            mask[self.sat_i-self.nx:self.sat_i-self.nx+self.nxsat] = False
+        if left:
+            mask[self.sat_i-1:self.sat_i-1+self.nx*self.nysat:self.nx] = False
+        if right:
+            mask[self.sat_i+self.nxsat:self.sat_i+self.nxsat+self.nx*self.nysat:self.nx] = False
+        if top:
+            mask[self.sat_i+self.nx*self.nysat:self.sat_i+self.nx*self.nysat+self.nxsat] = False
+        if bottom and left:
+            mask[self.sat_i-self.nx-1] = False
+        if bottom and right:
+            mask[self.sat_i+self.nxsat] = False
+        if top and left:
+            mask[self.sat_i-1+self.nx*self.nysat] = False
+        if top and right:
+            mask[self.sat_i+self.nxsat+self.nx*self.nysat] = False
+
+        return mask
 
 
 class Mesh_2D_rm_recursive(Mesh_recursive, Mesh_2D_rm):

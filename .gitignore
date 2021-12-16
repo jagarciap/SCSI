@@ -2,5 +2,7 @@
 /shelf/
 /workspace.xml
 *.pyc
+*.nbi
 google_drive.sh
 cases/**
+previous_executions/**

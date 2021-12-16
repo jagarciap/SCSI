@@ -548,9 +548,8 @@ class Electrostatic_2D_rm_sat_cond_recursive(Field_recursive, Electrostatic_2D_r
                 if boundary.type == "Inner - 1D_HET":
                     boundary.applyElectricBoundary(self)
                 #if boundary.material != 'satellite':
-                else:
-                    self.field[boundary.location, :] = -slv.derive_2D_rm_boundaries(self.potential, boundary,\
-                            self.pic.mesh.nx, self.pic.mesh.ny, self.pic.mesh.dx, self.pic.mesh.dy)
+                self.field[boundary.location, :] = -slv.derive_2D_rm_boundaries(self.potential, boundary,\
+                        self.pic.mesh.nx, self.pic.mesh.ny, self.pic.mesh.dx, self.pic.mesh.dy)
         self.assignChildrenBoundaries(border = border, interpolate = interpolate)
         for child in self.children:
             child.computeField(species, rho = rho, border = border, interpolate = interpolate)
@@ -767,7 +766,7 @@ class Electrostatic_2D_cm_sat_cond_recursive(Field_recursive, Electrostatic_2D_c
 
             try:
                 self.capacity = numpy.linalg.inv(self.inv_capacity)
-                att = 2e-4
+                att = 4e-4
                 self.capacity *= c.EPS_0*att
                 self.inv_capacity /= c.EPS_0*att
             except numpy.linalg.LinAlgError:
@@ -786,7 +785,8 @@ class Electrostatic_2D_cm_sat_cond_recursive(Field_recursive, Electrostatic_2D_c
                 rho = numpy.zeros_like(species[0].mesh_values.density)
                 for specie in species:
                     rho += specie.mesh_values.density*specie.q
-                    rho[loc] += specie.mesh_values.accDensity*specie.q
+                    #NOTE: Changed 2021/12/13
+                    #rho[loc] += specie.mesh_values.accDensity*specie.q
                 rho /= -c.EPS_0
                 self.floating_potential(species, rho)
             rho = self.pic.mesh.sortArrayByMeshes(rho)
@@ -844,7 +844,9 @@ class Electrostatic_2D_cm_sat_cond_recursive(Field_recursive, Electrostatic_2D_c
     def floating_potential(self, species, rho):
         loc = self.pic.mesh.overall_location_sat
         #Charge induced by the electric field
-        induced_charge = self.induced_charge(rho)
+        #NOTE: Changed to check the effects of induced charge
+        #induced_charge = self.induced_charge(rho)
+        induced_charge = 0
         #Charge acumulated in the surface
         charges = [specie.q*specie.mesh_values.accDensity*self.pic.mesh.volumes[loc] for specie in species]
         charge = reduce(lambda x,y: x+y, charges)

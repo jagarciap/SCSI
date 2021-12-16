@@ -183,7 +183,6 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
             y[:part_solver.pic.mesh.nx] = part_solver.pic.mesh.dy/8
         dv = 2*numpy.pi*y*part_solver.pic.mesh.dy*part_solver.pic.mesh.dx
         mpf_new /= numpy.where(numpy.abs(dv[location]/part_solver.pic.mesh.volumes[location]-2) > 1e-3, 2, 1)
-        pdb.set_trace()
 
         #Computing number of particles created
         add_rand = numpy.random.rand(len(location))
@@ -225,7 +224,7 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
 
         hit_1 = numpy.repeat(hit_1, mp_new)
         repeats = numpy.ones(numpy.shape(hit_1)[0], dtype = numpy.uint8)
-        return (numpy.append(pos_1, hit_1[:,None], axis = 1),), repeats
+        return (numpy.append(numpy.append(pos_1, hit_1[:,None], axis = 1), species.spwt*numpy.ones_like(hit_1)[:,None],axis = 1),), repeats
 
 
 #       +injectParticlesAtPositions('flux', Motion_Solver part_solver, Field field, Species species, [double] delta_n, [double] n_vel, double delta_pos) =
@@ -283,7 +282,8 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
             self.updateTrackers(species, np)
 
             #Calculating outgoing flux
-            hit = (numpy.append(pos_copy, border[:,None], axis = 1), numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
+            hit = (numpy.append(numpy.append(pos_copy, border[:,None], axis = 1), species.spwt*numpy.ones_like(border)[:,None],axis = 1),\
+                    numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
             part_solver.pic.scatterOutgoingFlux(species, hit)
 
             print("Injected particles: ", np)
@@ -348,7 +348,8 @@ class Inner_2D_Cylindrical(Inner_2D_Rectangular):
             self.updateTrackers(species, np)
 
             #Calculating outgoing flux
-            hit = (numpy.append(pos_copy, border[:,None], axis = 1), numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
+            hit = (numpy.append(numpy.append(pos_copy, border[:,None], axis = 1), species.spwt*numpy.ones_like(border)[:,None],axis = 1),\
+                    numpy.where(border%2 == 0, numpy.abs(vel[:,1]), numpy.abs(vel[:,0])))
             part_solver.pic.scatterOutgoingFlux(species, hit)
 
             print("Injected particles: ", np)

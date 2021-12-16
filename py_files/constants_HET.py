@@ -23,6 +23,9 @@ E_TS = 1    #Timesteps required for execution of electron dynamics
 P_TS = 10   #Timesteps required for protons dynamics
 HET_ION_TS = 150   #Timesteps required for HET ion dynamics
 VTK_TS = 300 #Timesteps required for printing of VTK files
+PR_E_TS = 5 #Timesteps used for checking the electrons per cell in the domain
+PR_P_TS = 50 #Timesteps used for checking the electrons per cell in the domain
+PR_ION_TS = 300 #Timesteps used for checking the electrons per cell in the domain
 
 #Geometrical parameters for a rectangular outer boundary
 #XMIN = 0.0

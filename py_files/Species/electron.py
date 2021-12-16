@@ -62,11 +62,11 @@ class Secondary_Emission_Electron(Electron):
 #           Then, for each thermal electron that impacted on the surface, it calculates the amount of Secondary Emission Electrons created.
 #           In this case, the Secondary Emission Electron Yield is kept constant at SEEY (keyword parameter).
     def see_yield_constant(self, flux_vals, SEEY = 2.9):
-        new_yields = SEEY*c.E_SPWT/c.SEE_SPWT*numpy.ones_like(flux_vals[3])
+        new_yields = SEEY*flux_vals[0][:,3]/c.SEE_SPWT
         new_see, remainder = numpy.divmod(new_yields, 1)
         rand_spread = numpy.random.rand(len(new_yields))
         new_see += numpy.where(rand_spread < remainder, 1, 0)
-        return new_see.astype(numpy.uint8)
+        return new_see.astype(numpy.int)
 
 #       +see_yield_constant(flux_vals, SEEY) = This function receives 'flux_vals', a group of lists of parameters related with the flux of incoming electrons to the spacecraft, one entry in the lists per electron. 
 #           Then, for each thermal electron that impacted on the surface, it calculates the amount of Secondary Emission Electrons created.
@@ -74,11 +74,11 @@ class Secondary_Emission_Electron(Electron):
 #           Source: E. Whipple, Rep. Prog. Phys. 44, 1197 (1981)
     def see_yield_whipple(self, flux_vals):
         E = self.m/2*(flux_vals[1]*flux_vals[1]+flux_vals[2]*flux_vals[2])
-        new_yields = c.E_SPWT/c.SEE_SPWT*sy.valuesToIndices(E, flux_vals[3], self.yields)
+        new_yields = flux_vals[0][:,3]/c.SEE_SPWT*sy.valuesToIndices(E, flux_vals[3], self.yields)
         new_see, remainder = numpy.divmod(new_yields, 1)
         rand_spread = numpy.random.rand(len(new_yields))
         new_see += numpy.where(rand_spread < remainder, 1, 0)
-        return new_see.astype(numpy.uint8)
+        return new_see.astype(numpy.int)
     
 
 #Electron_HET (Inherits from Electron):

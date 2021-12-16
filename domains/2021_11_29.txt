@@ -1,0 +1,181 @@
+#2D_Cylindrical mesh. Domain with two layers of inner meshes, and particle reformer.
+{
+	mesh = Mesh_2D_cm_sat_recursive
+	{
+		xmin = 0.0
+		xmax = 21.6
+		ymin = 0.0
+		ymax = 9.6
+		xminsat = 7.2
+		xmaxsat = 8.4
+		yminsat = 0.0
+		ymaxsat = 0.6
+		dx = 0.12
+		dy = 0.12
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = True
+		id = '0'
+		start_ind = 0
+	}
+	boundary_0 = Outer_2D_Cylindrical
+	{
+		xmin = 0.0
+		xmax = 21.6
+		ymin = 0.0
+		ymax = 9.6
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Cylindrical
+	{
+		xmin = 7.2
+		xmax = 8.4
+		ymin = 0.0
+		ymax = 0.6
+		material = 'satellite'
+	}
+	pic = PIC_2D_cm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = True
+	}
+	field = Electrostatic_2D_cm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = True
+	}
+	particle_reformer = Particle_reformer_particle_recursive
+	{
+		mesh = ''
+		partmin = 20
+		partmax = 60
+		partoptimum = 40
+		minfraction = 0.01
+		vtk = True
+		children = []
+		root = True
+	}
+}
+{
+	mesh = Mesh_2D_cm_sat_recursive
+	{
+		xmin = 3.0
+		xmax = 12.6
+		ymin = 0.0
+		ymax = 4.8
+		xminsat = 7.2
+		xmaxsat = 8.4
+		yminsat = 0.0
+		ymaxsat = 0.6
+		dx = 0.06
+		dy = 0.06
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = False
+		id = '0-0'
+		start_ind = 25
+	}
+	boundary_0 = Outer_2D_Cylindrical
+	{
+		xmin = 3.0
+		xmax = 12.6
+		ymin = 0.0
+		ymax = 4.8
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Cylindrical
+	{
+		xmin = 7.2
+		xmax = 8.4
+		ymin = 0.0
+		ymax = 0.6
+		material = 'satellite'
+	}
+	pic = PIC_2D_cm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = False
+	}
+	field = Electrostatic_2D_cm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = False
+	}
+	particle_reformer = Particle_reformer_particle_recursive
+	{
+		mesh = ''
+		partmin = 20
+		partmax = 60
+		partoptimum = 40
+		minfraction = 0.01
+		vtk = True
+		children = []
+		root = False
+	}
+}
+{
+	mesh = Mesh_2D_cm_sat_recursive
+	{
+		xmin = 5.4
+		xmax = 10.2
+		ymin = 0.0
+		ymax = 2.4
+		xminsat = 7.2
+		xmaxsat = 8.4
+		yminsat = 0.0
+		ymaxsat = 0.6
+		dx = 0.03
+		dy = 0.03
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = False
+		id = '0-0-0'
+		start_ind = 40
+	}
+	boundary_0 = Outer_2D_Cylindrical
+	{
+		xmin = 5.4
+		xmax = 10.2
+		ymin = 0.0
+		ymax = 2.4
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Cylindrical
+	{
+		xmin = 7.2
+		xmax = 8.4
+		ymin = 0.0
+		ymax = 0.6
+		material = 'satellite'
+	}
+	pic = PIC_2D_cm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = False
+	}
+	field = Electrostatic_2D_cm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = False
+	}
+	particle_reformer = Particle_reformer_particle_recursive
+	{
+		mesh = ''
+		partmin = 20
+		partmax = 60
+		partoptimum = 40
+		minfraction = 0.01
+		vtk = True
+		children = []
+		root = False
+	}
+}

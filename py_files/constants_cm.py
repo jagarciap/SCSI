@@ -12,12 +12,14 @@ g = 9.80665 #Gravity on Earth surface
 MU_0 = 4*numpy.pi*1e-7
 
 #Simulation time's parameters
-NUM_TS = numpy.int(20000)   #Number of total steps in the system
+NUM_TS = numpy.int(60000)   #Number of total steps in the system
 P_DT= 1e-8            # time step size
 E_DT = 1e-9        # time step for electron dynamics
 E_TS = 1    #Timesteps required for execution of electron dynamics
 P_TS = 10   #Timesteps required for protons dynamics
 VTK_TS = 300 #Timesteps required for printing of VTK files
+PR_E_TS = 5 #Timesteps used for checking the electrons per cell in the domain
+PR_P_TS = 50 #Timesteps used for checking the electrons per cell in the domain
 
 #Geometrical parameters for a rectangular outer boundary
 #XMIN = 0.0
@@ -69,10 +71,10 @@ P_V_TH_MP = numpy.sqrt(2*K*P_T/MP)     #Most Probable speed
 P_V_SW = 300e3
 
 #Particle simulation parameters
-P_SIZE = numpy.uint32(9e6)     #Size of the ions array
-E_SIZE = numpy.uint32(9e6)     #Size of the electrons array
-PHE_SIZE = numpy.uint32(14e5)     #Size of the electrons array
-SEE_SIZE = numpy.uint32(5e5)     #Size of the electrons array
+P_SIZE = numpy.uint32(6e6)     #Size of the ions array
+E_SIZE = numpy.uint32(6e6)     #Size of the electrons array
+PHE_SIZE = numpy.uint32(15e5)     #Size of the electrons array
+SEE_SIZE = numpy.uint32(1e6)     #Size of the electrons array
 P_SPWT = 1e7
 E_SPWT = 1e7
 PHE_SPWT = 5e4
@@ -90,4 +92,4 @@ B_DIM = 1
 INDEX_PREC = 3
 
 #Capacity Matrix file
-CAPACITY_FILE = None
+CAPACITY_FILE = "inv_capacity_matrix_2021-07-05_16h41m.txt"

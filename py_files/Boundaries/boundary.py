@@ -77,13 +77,17 @@ class Boundary(object):
         return numpy.append(vm_x[:,None], vm_y[:, None], axis = 1)
 
 #       +Add new particles to species. pos and vel represent their positions and velocities, respectively.
-    def addParticles(self, species, pos, vel):
+    def addParticles(self, species, pos, vel, spwt = None):
         n = numpy.shape(pos)[0]
         if species.part_values.current_n + n > species.part_values.max_n:
             raise ValueError ("Too many particles")
         #store position and velocity of this particle
         species.part_values.position[species.part_values.current_n:species.part_values.current_n+n]= pos
         species.part_values.velocity[species.part_values.current_n:species.part_values.current_n+n]= vel
+        if spwt is None:
+            species.part_values.spwt[species.part_values.current_n:species.part_values.current_n+n]= species.spwt
+        else:
+            species.part_values.spwt[species.part_values.current_n:species.part_values.current_n+n]= spwt
         #increment particle counter
         species.part_values.current_n += n
 
@@ -114,6 +118,7 @@ class Boundary(object):
         species.part_values.current_n -= numpy.shape(ind)[0]
         species.part_values.position[:species.part_values.current_n,:] = numpy.delete(species.part_values.position[:temp,:], ind, axis = 0)
         species.part_values.velocity[:species.part_values.current_n,:] = numpy.delete(species.part_values.velocity[:temp,:], ind, axis = 0)
+        species.part_values.spwt[:species.part_values.current_n] = numpy.delete(species.part_values.spwt[:temp], ind, axis = 0)
         #Updating trackers
         if species.part_values.num_tracked != 0:
             used_trackers = numpy.flatnonzero(species.part_values.trackers != species.part_values.max_n)
