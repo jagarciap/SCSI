@@ -1,7 +1,8 @@
 from paraview.simple import *
 
-firststep = 20
-names = ['0_ts*', '0-0_ts*', '0-0-0_ts*']
+firststep = 50
+#names = ['0_ts*', '0-0_ts*', '0-0-0_ts*']
+names = ['0_ts*', '0-0_ts*']
 
 for name in names:
     acs = FindSource(name)

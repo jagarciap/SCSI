@@ -286,7 +286,7 @@ class Mesh_recursive(object):
             child.vtkOrdering(array, accIndex = accIndex)
         return array
 
-#       +reverseVTKOrdering(array): array = The array received as argument is ordered in such a way it can be stored ina VTK file.
+#       +reverseVTKOrdering(array): array = The array received as argument is converted from VTK to numpy style.
     def reverseVTKOrdering(self, array):
         dims = numpy.shape(array)
         if len(dims) == 1:
@@ -573,7 +573,7 @@ class Mesh_2D_rm (Mesh):
                     tpl += (numpy.zeros_like(array[:,0].reshape((self.nx,self.ny,1))),)
             return tpl
 
-#       +reverseVTKOrdering(array): array = The array received as argument is ordered in such a way it can be stored ina VTK file.
+#       +reverseVTKOrdering(array): array = The array received as argument is converted from VTk style to numpy.
     def reverseVTKOrdering(self, array):
         dims = numpy.shape(array)
         if len(dims) == 1:
@@ -1156,6 +1156,14 @@ class Mesh_2D_cm (Mesh_2D_rm):
         mask[self.nx*(self.ny-2):self.nx*(self.ny-1)-1] = False
         mask[self.nx-2::self.nx] = False
         return mask
+
+#       +reverseVTKOrdering(array): array = The array received as argument is converted from VTk style to numpy.
+    def reverseVTKOrdering(self, array):
+        dims = numpy.shape(array)
+        if len(dims) == 1:
+            return array.reshape((self.nPoints), order = 'F')
+        else:
+            return array.reshape((self.nPoints, 3), order = 'F')
 
 #       +loadSpeciesVTK(self, species) = It creates particles around every node that can match the preoladed density and velocity of that node. This will depend on each type of mesh.
     def loadSpeciesVTK(self, species, pic, prec = 10**(-c.INDEX_PREC)):

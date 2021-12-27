@@ -573,6 +573,30 @@ def total_surface_charge_time(data, names, charges):
     plt.grid()
     plt.show()
 
+def angle_velocity_photoelectron(data, names):
+    #Angle
+    vel_avg = numpy.average(data[name], axis = 2)
+    angle = numpy.arctan2(vel_avg[:,1], vel_avg[:,0])*180/numpy.pi
+    angle = angle.reshape((mesh.ny, mesh.nx), order = 'A')
+
+    #Preparing coordinates
+    array = numpy.arange(mesh.nPoints)
+    ind = mesh.arrayToIndex(array)
+    x = ind[:,0].reshape((mesh.ny, mesh.nx), order = 'A')
+    y = ind[:,1].reshape((mesh.ny, mesh.nx), order = 'A')
+
+    #Plotting
+    fig = plt.figure()
+    cf = plt.contourf(x,y, angle, 64, cmap = 'gist_rainbow_r')
+    cbar = fig.colorbar(cf)
+    plt.title(r'\textbf{Velocity angle}', fontsize = 24)
+    plt.show()
+    pdb.set_trace()
+
+
+    
+
+
 
 #---------------------------------------------------------------------------------------------------------------------
 # Extracting data
@@ -582,7 +606,8 @@ data ={}
 names = [\
         "Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux",\
         "Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux",\
-        "Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"\
+        "Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density",\
+        "Electron - Photoelectron-velocity"
         ]
 results = vtn.vtrToNumpy(mesh, vtn.loadFromResults(), names)
 for name, array in zip(names, results):
@@ -622,10 +647,10 @@ for name, array in zip(names, results):
 #satellite_potential_time(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
 #satellite_potential_FT(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
 #density_FT(data, "Electron - Solar wind-density")
-current_collected_time(data, ["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"])
-current_collected_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"])
-current_recollection_percentage_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\
-                                     ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
+#current_collected_time(data, ["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"])
+#current_collected_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"])
+#current_recollection_percentage_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\
+#                                     ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
 ##approx_velocity_wall(["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"],\
 ##                     ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"])
 ##approx_velocity_wall(["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\
@@ -634,7 +659,8 @@ current_recollection_percentage_time(data, ["Electron - Photoelectron-outgoing_f
 #                               ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
 #surface_charge_density_time(["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
 #                            [c.QE, c.QE, c.QE, -c.QE])
-net_surface_charge_density_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
-                            [c.QE, c.QE, c.QE, -c.QE])
-total_surface_charge_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
-                            [c.QE, c.QE, c.QE, -c.QE])
+#net_surface_charge_density_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
+#                            [c.QE, c.QE, c.QE, -c.QE])
+#total_surface_charge_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
+#                            [c.QE, c.QE, c.QE, -c.QE])
+angle_velocity_photoelectron(data, ["Electron - Photoelectron-velocity"])

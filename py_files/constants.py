@@ -18,8 +18,8 @@ E_DT = 1e-9        # time step for electron dynamics
 E_TS = 1    #Timesteps required for execution of electron dynamics
 P_TS = 10   #Timesteps required for protons dynamics
 VTK_TS = 30 #Timesteps required for printing of VTK files
-PR_E_TS = 2 #Timesteps used for checking the electrons per cell in the domain
-PR_P_TS = 20 #Timesteps used for checking the electrons per cell in the domain
+PR_E_TS = 10 #Timesteps used for checking the electrons per cell in the domain
+PR_P_TS = 100 #Timesteps used for checking the electrons per cell in the domain
 
 #Geometrical parameters for a rectangular outer boundary
 #XMIN = 0.0

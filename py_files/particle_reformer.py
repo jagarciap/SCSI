@@ -374,10 +374,6 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
             new_velocities = [numpy.zeros((0,species.vel_dim))]
             new_spwts = [numpy.zeros((0))]
             del_indices = [numpy.zeros((0), dtype = numpy.int)]
-            #new_positions = numpy.zeros((0,species.pos_dim))
-            #new_velocities = numpy.zeros((0,species.vel_dim))
-            #new_spwts = numpy.zeros((0))
-            #del_indices = numpy.zeros((0), dtype = numpy.int)
         pos = positions.pop(0)
         part = pos_ind.pop(0)
         start_ind = acc_ind[0]
@@ -409,7 +405,7 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
         new_spwt_m, part_per_part_m = self.redistributeSPWTs(species, parts, indices_m)
         new_pos_m = numpy.repeat(species.part_values.position[part_ind_m,:], part_per_part_m, axis = 0)
         new_vel_m = numpy.repeat(species.part_values.velocity[part_ind_m,:], part_per_part_m, axis = 0)
-        #Adding a random 0.05*|vel| isotropic velocity so that the particles over time, and distributing them in space too
+        #Adding a random 0.05*|vel| isotropic velocity so that the particles separate over time, and distributing them in space too
         speed = numpy.linalg.norm(species.part_values.velocity[part_ind_m,:], axis = 1)
         new_speeds = numpy.repeat(speed, part_per_part_m)*0.05
         randg = numpy.random.rand(len(new_spwt_m),3)
@@ -431,19 +427,6 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
                         weights = species.part_values.spwt[parts[indices_f[i]][j::self.partoptimum]], axis = 0)
                 new_vel_f[i*self.partoptimum+j,:] = numpy.average(species.part_values.velocity[parts[indices_f[i]][j::self.partoptimum],:],\
                         weights = species.part_values.spwt[parts[indices_f[i]][j::self.partoptimum]], axis = 0)
-        ##Creation of new particles - fewer
-        #part_ind_f = numpy.zeros((0), dtype = numpy.int)
-        #part_ind_f = reduce(lambda acc, ind: numpy.append(acc, parts[ind]), indices_f, part_ind_f)
-        #new_spwt_f, part_per_part_f = self.redistributeSPWTs(species, parts, indices_f)
-        #new_pos_f = numpy.zeros((len(new_spwt_f), species.pos_dim))
-        #new_vel_f = numpy.zeros((len(new_spwt_f), species.vel_dim))
-        #base_ind = numpy.zeros_like(new_spwt_f, dtype = numpy.int)
-        #base_ind[1:] = numpy.cumsum(part_per_part_f[0:-1], dtype = numpy.int)
-        #for i in range(len(base_ind)):
-        #    new_pos_f[i,:] = numpy.average(species.part_values.position[part_ind_f[base_ind[i]:base_ind[i]+part_per_part_f[i]],:],\
-        #            weights = species.part_values.spwt[part_ind_f[base_ind[i]:base_ind[i]+part_per_part_f[i]]], axis = 0)
-        #    new_vel_f[i,:] = numpy.average(species.part_values.velocity[part_ind_f[base_ind[i]:base_ind[i]+part_per_part_f[i]],:],\
-        #            weights = species.part_values.spwt[part_ind_f[base_ind[i]:base_ind[i]+part_per_part_f[i]]], axis = 0)
         #Adding to variables in recursion
         new_spwts[0] = numpy.append(new_spwts[0], numpy.append(new_spwt_m, new_spwt_f))
         new_positions[0] = numpy.append(new_positions[0], numpy.append(new_pos_m, new_pos_f, axis = 0), axis = 0)
