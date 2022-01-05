@@ -227,7 +227,7 @@ class Boris_Push(Motion_Solver):
 #           type_boundary indicates the type of boundary method to apply to particles. 'open', the default method, deletes them. 'reflective' reflects them back to the dominion.
 #           **kwargs may contain arguments necessary for inner methods.
     @Timing
-    def updateParticles(self, species, e_fields, m_fields, update_dic, types_boundary, **kwargs):
+    def updateParticles(self, species, e_fields, m_fields, update_dic, types_boundary, boundaries_order = None, **kwargs):
         result_dic = {}
         #Summing over the different fields
         e_total = copy.deepcopy(e_fields[0])
@@ -245,11 +245,13 @@ class Boris_Push(Motion_Solver):
         #Updating position
         old_position = copy.copy(species.part_values.position)
         #assert len(numpy.nonzero(numpy.linalg.norm(species.part_values.velocity[:np,:]*species.dt, axis = 1) > self.pic.mesh.dx)[0]) < 200, "It moved more than dx"
+        #pdb.set_trace()
         species.part_values.position[:np,:] = af.updateParticles_p(species.part_values.position[:np,:], species.part_values.velocity[:np,:], species.dt)
 
         if update_dic == 1:
             self.vel_dic[species.name] = copy.copy(species.part_values.velocity)
-        for boundary, type_boundary in zip_longest(self.pic.mesh.boundaries, types_boundary, fillvalue = types_boundary[0]):
+        order = self.pic.mesh.boundaries if boundaries_order == None else boundaries_order
+        for boundary, type_boundary in zip_longest(order, types_boundary, fillvalue = types_boundary[0]):
             result_boundary = boundary.applyParticleBoundary(species, type_boundary, old_position = old_position, **kwargs)
             if result_boundary is not None:
                 if 'del_ind' in result_boundary.keys():
@@ -340,7 +342,7 @@ class Leap_Frog_2D3Dcm(Leap_Frog):
 #           type_boundary indicates the type of boundary method to apply to particles. 'open', the default method, deletes them. 'reflective' reflects them back to the dominion.
 #           **kwargs may contain arguments necessary for inner methods.
     @Timing
-    def updateParticles(self, species, e_fields, m_fields, update_dic, types_boundary, **kwargs):
+    def updateParticles(self, species, e_fields, m_fields, update_dic, types_boundary, boundaries_order = None, **kwargs):
         result_dic = {}
         #Summing over the different fields
         e_total = copy.deepcopy(e_fields[0])
@@ -374,7 +376,8 @@ class Leap_Frog_2D3Dcm(Leap_Frog):
 
         if update_dic == 1:
             self.vel_dic[species.name] = copy.copy(species.part_values.velocity)
-        for boundary, type_boundary in zip_longest(self.pic.mesh.boundaries, types_boundary, fillvalue = types_boundary[0]):
+        order = self.pic.mesh.boundaries if boundaries_order == None else boundaries_order
+        for boundary, type_boundary in zip_longest(order, types_boundary, fillvalue = types_boundary[0]):
             result_boundary = boundary.applyParticleBoundary(species, type_boundary, old_position = old_position, **kwargs)
             if result_boundary is not None:
                 if 'del_ind' in result_boundary.keys():
