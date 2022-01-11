@@ -66,6 +66,7 @@ class Outer_1D_Rectangular(Boundary):
             values = numpy.zeros((len(self.location)))
         elif self.directions[0] == 3:
             values = -20*numpy.ones((len(self.location)))
+            #values = numpy.zeros((len(self.location)))
         if self.directions[0]%2 == 1:
             e_field.dirichlet(values, self, e_field.pic.mesh.nx, e_field.pic.mesh.ny, e_field.pic.mesh.dx, e_field.pic.mesh.dy)
         else:
@@ -229,7 +230,7 @@ class Outer_1D_Rectangular(Boundary):
                       (species.part_values.position[ind,1]-old_position[ind,1])*\
                       (self.ymin-old_position[ind,1])+old_position[ind,0]
                 species.part_values.position[ind, 1] = 2*self.ymin - species.part_values.position[ind,1]+delta
-                species.part_values.position[ind, 0] = hit
+                #species.part_values.position[ind, 0] = hit
                 species.part_values.velocity[ind, 1] *= -1.0
             #Left
             elif self.directions[0] == 3:
@@ -237,7 +238,7 @@ class Outer_1D_Rectangular(Boundary):
                       (species.part_values.position[ind,0]-old_position[ind,0])* \
                       (self.xmin-old_position[ind,0])+old_position[ind,1]
                 species.part_values.position[ind, 0] = 2*self.xmin - species.part_values.position[ind,0]+delta
-                species.part_values.position[ind, 1] = hit
+                #species.part_values.position[ind, 1] = hit
                 species.part_values.velocity[ind, 0] *= -1.0
             #Right
             elif self.directions[0] == 1:
@@ -245,7 +246,7 @@ class Outer_1D_Rectangular(Boundary):
                       (species.part_values.position[ind,0]-old_position[ind,0])* \
                       (self.xmax-old_position[ind,0])+old_position[ind,1]
                 species.part_values.position[ind, 0] = 2*self.xmax - species.part_values.position[ind,0]-delta
-                species.part_values.position[ind, 1] = hit
+                #species.part_values.position[ind, 1] = hit
                 species.part_values.velocity[ind, 0] *= -1.0
             #Top
             else:
@@ -253,7 +254,7 @@ class Outer_1D_Rectangular(Boundary):
                       (species.part_values.position[ind,1]-old_position[ind,1])* \
                       (self.ymax-old_position[ind,1])+old_position[ind,0]
                 species.part_values.position[ind, 1] = 2*self.ymax - species.part_values.position[ind,1]-delta
-                species.part_values.position[ind, 0] = hit
+                #species.part_values.position[ind, 0] = hit
                 species.part_values.velocity[ind, 1] *= -1.0
 
 #       +createDummyBox([ind]location, PIC pic, Species species, [double] delta_n, [double] n_vel, [double] shift_vel) = create the dummy boxes with particles in them.
@@ -285,8 +286,10 @@ class Outer_1D_Rectangular(Boundary):
 
         #Right
         elif self.directions[0] == 1:
-            shift = numpy.where(numpy.abs(pos[:,1]-self.ymin) < prec, random[:,1]/2*pic.mesh.dy, (random[:,1]-0.5)*pic.mesh.dy)
-            pos[:,1] = pos[:,1] + shift - numpy.where(numpy.abs(pos[:,1]-self.ymax) < prec, random[:,1]/2*pic.mesh.dy, 0)
+            shift = (random[:,1]-0.5)*pic.mesh.dy
+            pos[:,1] = pos[:,1] + shift
+            #shift = numpy.where(numpy.abs(pos[:,1]-self.ymin) < prec, random[:,1]/2*pic.mesh.dy, (random[:,1]-0.5)*pic.mesh.dy)
+            #pos[:,1] = pos[:,1] + shift - numpy.where(numpy.abs(pos[:,1]-self.ymax) < prec, random[:,1]/2*pic.mesh.dy, 0)
             pos[:,0] += random[:,0]/2*pic.mesh.dx
         #Top
         elif self.directions[0] == 2:
@@ -317,7 +320,7 @@ class Outer_1D_Rectangular(Boundary):
         #Entering particles into the mesh and adjusting them according to motion_solver
         old_position = copy.copy(ghost.part_values.position)
         #if "Proton" in species.name:
-        #    pdb.set_trace()
+        #pdb.set_trace()
         ghost.part_values.position[:np,:] += ghost.part_values.velocity[:np,:]*ghost.dt
         ind = numpy.flatnonzero(part_solver.pic.mesh.checkPositionInMesh(ghost.part_values.position[:np,:]))
 
@@ -392,8 +395,8 @@ class Outer_1D_Rectangular(Boundary):
             hit_1 = 3*numpy.ones_like(pos_1[:,1], dtype = numpy.uint8)[:,None]
         #Right
         elif self.directions[local_loc[0]] == 1:
-            shifts = numpy.where(numpy.abs(pos_1[:,1]-self.ymin) < prec, random*part_solver.pic.mesh.dy/2, (random-0.5)*part_solver.pic.mesh.dy)
-            shifts -= numpy.where(numpy.abs(pos_1[:,1]-self.ymax) < prec, random*part_solver.pic.mesh.dy/2, 0)
+            shifts = numpy.where(numpy.abs(pos_1[:,1]-self.ymin) < prec, random*part_solver.pic.mesh.dy/2+2*prec, (random-0.5)*part_solver.pic.mesh.dy)
+            shifts -= numpy.where(numpy.abs(pos_1[:,1]-self.ymax) < prec, random*part_solver.pic.mesh.dy/2+2*prec, 0)
             pos_1[:,1] += shifts
             hit_1 = numpy.ones_like(pos_1[:,1], dtype = numpy.uint8)[:,None]
         #Top
@@ -426,7 +429,7 @@ class Outer_1D_Rectangular(Boundary):
             vel = super().sampleIsotropicVelocity(numpy.asarray([n_vel[0]]), sum_particles)+numpy.repeat(numpy.reshape(drift_vel[0,:], (1,2)), sum_particles, axis = 0)
             #Average velocity in one direction
             #TODO: This should be generalized for n_vel being an array of different velocities for each node
-            vx = n_vel[0]/2/1.7724538509055159+drift_vel[0,0]         #That number is sqrt(pi)
+            vx = n_vel[0]/2/1.7724538509055159+numpy.abs(drift_vel[0,0])         #That number is sqrt(pi)
             if border[0] == 0:
                 pos[:,1] += delta_pos+vx*dt*rand
                 vel[:,1] *= numpy.where(vel[:,1] < 0, -1, 1)

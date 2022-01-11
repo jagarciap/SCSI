@@ -12,9 +12,9 @@ sys.stderr = open("err.txt", "w")
 import constants as c
 from field import Constant_Magnetic_Field
 from mesh_setup import mesh_file_reader
-from Species.proton import Proton_SW
+from Species.proton import Proton
 from Species.xenon import Xenon_Ion
-from Species.electron import Electron_SW, Photoelectron, Secondary_Emission_Electron, Electron_HET
+from Species.electron import Electron_SW, Photoelectron, Secondary_Emission_Electron, Electron_HET, Electron
 from Species.user_defined import User_Defined
 import initial_conditions.free_stream_condition as ic
 from motion import Boris_Push
@@ -51,8 +51,8 @@ class System(object):
         #TODO: Change later
         self.at['mesh'], self.at['pic'], self.at['e_field'] = mesh_file_reader('2021_12_31.txt')
         self.at['mesh'].print()
-        self.at['electrons'] = Electron_SW(0.0, c.E_SPWT, c.E_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED)
-        self.at['protons'] = Proton_SW(0.0, c.P_SPWT, c.P_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED)
+        self.at['electrons'] = Electron(0.0, c.E_SPWT, c.E_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED, "")
+        self.at['protons'] = Proton(0.0, c.P_SPWT, c.P_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED, "")
         #self.at['user'] = User_Defined(c.P_DT, -c.QE, c.MP, 0, c.P_SPWT, 1, c.DIM, c.DIM, self.at['mesh'].nPoints, 0, "1")
         self.at['m_field'] = Constant_Magnetic_Field(self.at['pic'], c.B_DIM)
         self.at['part_solver'] = Boris_Push(self.at['pic'], [self.at['electrons'].name, self.at['protons'].name],\
@@ -86,10 +86,6 @@ system = System()
 
 if sys.argv[1] == '1':
     system.at['part_solver'].initialConfiguration(system.at['electrons'], system.at['e_field'])
-    system.at['part_solver'].initialConfiguration(system.at['electrons_HET'], system.at['e_field'])
-    system.at['part_solver'].initialConfiguration(system.at['photoelectrons'], system.at['e_field'])
-    system.at['part_solver'].initialConfiguration(system.at['see'], system.at['e_field'])
-    system.at['part_solver'].initialConfiguration(system.at['ions_HET'], system.at['e_field'])
     system.at['part_solver'].initialConfiguration(system.at['protons'], system.at['e_field'])
 
 elif sys.argv[1] == '2':
@@ -212,8 +208,12 @@ def SWE():
                 boundaries_order = [system.at['mesh'].boundaries[0], system.at['mesh'].boundaries[2], system.at['mesh'].boundaries[1], system.at['mesh'].boundaries[3]], albedo = c.E_ALBEDO)
 
     #Injection of solar wind electrons at the outer boundary
-    system.at['mesh'].boundaries[1].injectParticlesDummyBox(system.at['mesh'].boundaries[1].location, system.at['part_solver'], \
-                                                            system.at['e_field'],system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0])
+    #system.at['mesh'].boundaries[1].injectParticlesDummyBox(system.at['mesh'].boundaries[1].location, system.at['part_solver'], \
+    #                                                        system.at['e_field'],system.at['electrons'], e_n[0], thermal_e_vel[0], drift_e_vel[0])
+    flux, n_delta_swe = system.at['mesh'].boundaries[1].createDistributionAtBorder(system.at['mesh'].boundaries[1].location, system.at['part_solver'], system.at['electrons'],\
+            e_n[0]*c.E_V_TH_MP/1.7724538509055159*c.E_DT)         #That number is sqrt(pi)
+    system.at['mesh'].boundaries[1].injectParticlesAtPositions_smooth(flux, system.at['part_solver'], \
+                                                                       system.at['e_field'], system.at['electrons'], n_delta_swe, thermal_e_vel[0], drift_e_vel[0], system.at['electrons'].dt)
     return advance_dict_e
 
 def SWP():
@@ -227,8 +227,11 @@ def SWP():
                 boundaries_order = [system.at['mesh'].boundaries[0], system.at['mesh'].boundaries[2], system.at['mesh'].boundaries[1], system.at['mesh'].boundaries[3]], update_dic = 0)
     #for i, boundary in enumerate(system.at['mesh'].boundaries):
     #    boundary.injectParticlesDummyBox(boundary.location, system.at['part_solver'], system.at['e_field'], system.at['protons'], p_n[i], thermal_p_vel[i], drift_p_vel[i])
-    system.at['mesh'].boundaries[1].injectParticlesDummyBox(system.at['mesh'].boundaries[1].location, system.at['part_solver'], \
-                                                            system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0])
+    #system.at['mesh'].boundaries[1].injectParticlesDummyBox(system.at['mesh'].boundaries[1].location, system.at['part_solver'], \
+    #                                                        system.at['e_field'], system.at['protons'], p_n[0], thermal_p_vel[0], drift_p_vel[0])
+    flux, n_delta_swp = system.at['mesh'].boundaries[1].createDistributionAtBorder(system.at['mesh'].boundaries[1].location, system.at['part_solver'], system.at['protons'], -p_n[0]*c.P_V_SW*c.P_DT)
+    system.at['mesh'].boundaries[1].injectParticlesAtPositions_smooth(flux, system.at['part_solver'], \
+                                                                       system.at['e_field'], system.at['protons'], n_delta_swp, thermal_p_vel[0], drift_p_vel[0], system.at['protons'].dt)
 
 ## ---------------------------------------------------------------------------------------------------------------
 # Main loop
@@ -245,6 +248,9 @@ try:
 
         #Solving the fields
         system.at['e_field'].computeField([system.at['protons'], system.at['electrons']])
+        if system.at['ts'] < 10000:
+            system.at['e_field'].potential*= 0
+            system.at['e_field'].field*= 0
     
         # Electron motion
         if system.at['ts']%c.E_TS == 0:
@@ -261,8 +267,8 @@ try:
             out.saveVTK(system.at['mesh'], system.at, system.arrangeVTK())
         #if system.at['ts']%100000 == 100000-1:
         #    out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
-        #if system.at['ts']%100000 == 100000-1:
-        #    out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'], old_system.at['photoelectrons'], old_system.at['see'])
+        if system.at['ts']%2 == 0:
+            out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'])
     
         #Updating previous state
         deepcopy = Timing(copy.deepcopy)
@@ -295,4 +301,3 @@ out.savePickle(system.at, system.arrangePickle())
 print('Simulation finished')
 print('Last state succesfully saved')
 sys.exit()
-#Holi

@@ -236,73 +236,99 @@ class Particle_reformer_particle(Particle_reformer):
         super().__init__(n_mesh, n_partmin, n_partmax, n_minfraction, n_vtk)
         self.partoptimum = n_partoptimum
 
-#       +redistributeSPWTs(Species species, [[int]] indices): [[int]] SPWTs = This function receives a species, and a list of lists indicating, per cell, the indices of the particles that
-#           are inside. Then, it counts the amount of real particles per cell and computes the SPWTs of the new particles.
-#           The function returns new_spwts, an array the size of the total amount of new particles, with the SPWT of each, and it returns,
-#           part_per_part, the number of new particles created per old particle, ordered per cell and particle per cell.
+
+##       +redistributeSPWTs(Species species, [[int]] indices): [[int]] SPWTs = This function receives a species, and a list of lists indicating, per cell, the indices of the particles that
+##           are inside. Then, it counts the amount of real particles per cell and computes the SPWTs of the new particles.
+##           The function returns new_spwts, an array the size of the total amount of new particles, with the SPWT of each, and it returns,
+##           part_per_part, the number of new particles created per old particle, ordered per cell and particle per cell.
+##           +Parameters: 
 #    def redistributeSPWTs(self, species, parts, indices):
-#        part_per_cell = numpy.asarray([len(parts[i]) for i in indices])
-#        if len(part_per_cell) > 0:
-#            part_per_part_cell = numpy.ceil(self.partoptimum/part_per_cell).astype(numpy.uint8)
-#            part_per_part = numpy.repeat(part_per_part_cell, part_per_cell)
-#            new_spwts = numpy.zeros((0))
-#            for i in range(len(indices)):
-#                spwts_c, remainder = numpy.divmod(species.part_values.spwt[parts[indices[i]]], part_per_part_cell[i])
-#                new_spwts_per_cell = numpy.repeat(spwts_c, part_per_part_cell[i])
-#                new_spwts_per_cell[0::part_per_part_cell[i]] += remainder
-#                new_spwts = numpy.append(new_spwts, new_spwts_per_cell)
-#            return new_spwts, part_per_part
-#        else:
-#            return numpy.zeros((0)), numpy.zeros((0), dtype = numpy.uint8)
+#        part_per_cell = numpy.asarray([len(parts[i]) for i in indices]).astype(numpy.int)
+#        part_per_part_cell = self.partoptimum/part_per_cell
+#        fewer = numpy.flatnonzero(part_per_part_cell < 1)
+#        more = numpy.flatnonzero(part_per_part_cell > 1)
+#        new_spwts = numpy.zeros((0))
+#        part_per_part = numpy.zeros((0))
+#
+#        #Merging of particles
+#        ind_sel = indices[fewer]
+#        part_per_part_cell_fewer = numpy.ceil(1/part_per_part_cell[fewer]).astype(numpy.uint8)
+#        for i in range(len(ind_sel)):
+#            spwts_c = numpy.zeros((self.partoptimum))
+#            part_c = numpy.zeros((self.partoptimum))
+#            for j in range(self.partoptimum):
+#                spwts_c[j] = numpy.sum(species.part_values.spwt[parts[ind_sel[i]]][j::self.partoptimum])
+#                part_c[j] = len(parts[ind_sel[i]][j::self.partoptimum])
+#            new_spwts = numpy.append(new_spwts, spwts_c)
+#            part_per_part = numpy.append(part_per_part, part_c)
+##        for i in range(len(ind_sel)):
+##            ind = numpy.arange(0, part_per_cell[fewer][i], part_per_part_cell_fewer[i])
+##            spwts_c = numpy.zeros((len(ind)))
+##            part_c = numpy.zeros((len(ind)))
+##            for j in range(len(ind)-1):
+##                spwts_c[j] = numpy.sum(species.part_values.spwt[parts[ind_sel[i]]][ind[j]:ind[j]+part_per_part_cell_fewer[i]])
+##            part_c[:-1] = part_per_part_cell_fewer[i]
+##            spwts_c[-1] = numpy.sum(species.part_values.spwt[parts[ind_sel[i]]][ind[-1]:])
+##            part_c[-1] = part_per_cell[fewer][i]-ind[-1]
+##            new_spwts = numpy.append(new_spwts, spwts_c)
+##            part_per_part = numpy.append(part_per_part, part_c)
+#
+#        #Splitting of particles
+#        ind_sel = indices[more]
+#        part_per_part_cell_more = numpy.ceil(part_per_part_cell[more]).astype(numpy.uint8)
+#        part_per_part = numpy.append(part_per_part, numpy.repeat(part_per_part_cell_more, part_per_cell[more]))
+#        for i in range(len(ind_sel)):
+#            spwts_c, remainder = numpy.divmod(species.part_values.spwt[parts[ind_sel[i]]], part_per_part_cell_more[i])
+#            new_spwts_per_cell = numpy.repeat(spwts_c, part_per_part_cell_more[i])
+#            new_spwts_per_cell[0::part_per_part_cell_more[i]] += remainder
+#            new_spwts = numpy.append(new_spwts, new_spwts_per_cell)
+#
+#        #Returning both
+#        return new_spwts, part_per_part.astype(int)
+
 
 #       +redistributeSPWTs(Species species, [[int]] indices): [[int]] SPWTs = This function receives a species, and a list of lists indicating, per cell, the indices of the particles that
 #           are inside. Then, it counts the amount of real particles per cell and computes the SPWTs of the new particles.
 #           The function returns new_spwts, an array the size of the total amount of new particles, with the SPWT of each, and it returns,
 #           part_per_part, the number of new particles created per old particle, ordered per cell and particle per cell.
-    def redistributeSPWTs(self, species, parts, indices):
+#           +Parameters: 
+#           +direction = None. direction can be 'more' or 'fewer'. If 'more' it will redistribute SPWT as if more particles are needed. If 'fewer' it will redistribute as if less particles
+#               are needed.
+    def redistributeSPWTs(self, species, parts, indices, direction = None):
         part_per_cell = numpy.asarray([len(parts[i]) for i in indices]).astype(numpy.int)
         part_per_part_cell = self.partoptimum/part_per_cell
-        fewer = numpy.flatnonzero(part_per_part_cell < 1)
-        more = numpy.flatnonzero(part_per_part_cell > 1)
         new_spwts = numpy.zeros((0))
         part_per_part = numpy.zeros((0))
 
         #Merging of particles
-        ind_sel = indices[fewer]
-        part_per_part_cell_fewer = numpy.ceil(1/part_per_part_cell[fewer]).astype(numpy.uint8)
-        for i in range(len(ind_sel)):
-            spwts_c = numpy.zeros((self.partoptimum))
-            part_c = numpy.zeros((self.partoptimum))
-            for j in range(self.partoptimum):
-                spwts_c[j] = numpy.sum(species.part_values.spwt[parts[ind_sel[i]]][j::self.partoptimum])
-                part_c[j] = len(parts[ind_sel[i]][j::self.partoptimum])
-            new_spwts = numpy.append(new_spwts, spwts_c)
-            part_per_part = numpy.append(part_per_part, part_c)
-#        for i in range(len(ind_sel)):
-#            ind = numpy.arange(0, part_per_cell[fewer][i], part_per_part_cell_fewer[i])
-#            spwts_c = numpy.zeros((len(ind)))
-#            part_c = numpy.zeros((len(ind)))
-#            for j in range(len(ind)-1):
-#                spwts_c[j] = numpy.sum(species.part_values.spwt[parts[ind_sel[i]]][ind[j]:ind[j]+part_per_part_cell_fewer[i]])
-#            part_c[:-1] = part_per_part_cell_fewer[i]
-#            spwts_c[-1] = numpy.sum(species.part_values.spwt[parts[ind_sel[i]]][ind[-1]:])
-#            part_c[-1] = part_per_cell[fewer][i]-ind[-1]
-#            new_spwts = numpy.append(new_spwts, spwts_c)
-#            part_per_part = numpy.append(part_per_part, part_c)
+        if direction == 'fewer':
+            part_per_part_cell_fewer = numpy.ceil(1/part_per_part_cell).astype(numpy.uint8)
+            for i in range(len(indices)):
+                spwts_c = numpy.zeros((self.partoptimum))
+                part_c = numpy.zeros((self.partoptimum))
+                for j in range(self.partoptimum):
+                    spwts_c[j] = numpy.sum(species.part_values.spwt[parts[indices[i]]][j::self.partoptimum])
+                    part_c[j] = len(parts[indices[i]][j::self.partoptimum])
+                new_spwts = numpy.append(new_spwts, spwts_c)
+                part_per_part = numpy.append(part_per_part, part_c)
 
         #Splitting of particles
-        ind_sel = indices[more]
-        part_per_part_cell_more = numpy.ceil(part_per_part_cell[more]).astype(numpy.uint8)
-        part_per_part = numpy.append(part_per_part, numpy.repeat(part_per_part_cell_more, part_per_cell[more]))
-        for i in range(len(ind_sel)):
-            spwts_c, remainder = numpy.divmod(species.part_values.spwt[parts[ind_sel[i]]], part_per_part_cell_more[i])
-            new_spwts_per_cell = numpy.repeat(spwts_c, part_per_part_cell_more[i])
-            new_spwts_per_cell[0::part_per_part_cell_more[i]] += remainder
-            new_spwts = numpy.append(new_spwts, new_spwts_per_cell)
+        elif direction == 'more':
+            part_per_part_cell_more = numpy.ceil(part_per_part_cell).astype(numpy.uint8)
+            part_per_part = numpy.append(part_per_part, numpy.repeat(part_per_part_cell_more, part_per_cell))
+            for i in range(len(indices)):
+                spwts_c, remainder = numpy.divmod(species.part_values.spwt[parts[indices[i]]], part_per_part_cell_more[i])
+                new_spwts_per_cell = numpy.repeat(spwts_c, part_per_part_cell_more[i])
+                new_spwts_per_cell[0::part_per_part_cell_more[i]] += remainder
+                new_spwts = numpy.append(new_spwts, new_spwts_per_cell)
 
-        #Returning both
+        else:
+            raise Error ("more or fewer should be passed as value of direction kwarg")
+
+        #Returning
         return new_spwts, part_per_part.astype(int)
 
+#NOTE: This method has to include the change of RedistributeSPWT made on 2022_01_10.
     def computeParticleReform(self, species):
         #Checking particles in each cell
         count, parts = self.sortByCell(species.part_values.position[:species.part_values.current_n], numpy.arange(species.part_values.current_n, dtype = numpy.uint64))
@@ -367,6 +393,7 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
         super().__init__(n_children, n_root, self.type)
 
     def computeParticleReform(self, species, positions = None, acc_ind = None, pos_ind = None, new_positions = None, new_velocities = None, new_spwts = None, del_indices = None):
+        #Tree structure section
         if self.root == True:
             positions, pos_ind = self.mesh.sortPositionsByMeshes(species.part_values.position[:species.part_values.current_n], return_ind = [], surface = True)
             acc_ind = [0]
@@ -376,13 +403,14 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
             del_indices = [numpy.zeros((0), dtype = numpy.int)]
         pos = positions.pop(0)
         part = pos_ind.pop(0)
-        start_ind = acc_ind[0]
         acc_ind[0] += self.mesh.nPoints
         for child in self.children:
             child.computeParticleReform(species, positions = positions, acc_ind = acc_ind, pos_ind = pos_ind,\
                     new_positions = new_positions, new_velocities = new_velocities, new_spwts = new_spwts, del_indices = del_indices)
+        #Splitting particles with high SPWT
+        new_spwt_h, new_pos_h, new_vel_h, part_ind_h, new_pos, new_part = self.partitionHighSPWTParticles(species, pos, part)
         #Checking particles in each cell
-        count, parts = self.sortByCell(pos, part)
+        count, parts = self.sortByCell(new_pos, new_part)
         #Selecting cells to process
         indices = numpy.arange(self.mesh.nPoints)
         filter_1 = self.mesh.particleReformNodes()
@@ -393,6 +421,7 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
         filter_3 = numpy.logical_and(count < self.partmin, count > 3)
         indices_f = indices[numpy.logical_and(filter_1, filter_2)]
         indices_m = indices[numpy.logical_and(filter_1, filter_3)]
+
         #Creation of new particles - more
         filter_4 = []
         part_ind_m = []
@@ -402,36 +431,18 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
             else:
                 part_ind_m.extend(parts[indices_m[i]])
         indices_m = numpy.delete(indices_m, filter_4)
-        new_spwt_m, part_per_part_m = self.redistributeSPWTs(species, parts, indices_m)
-        new_pos_m = numpy.repeat(species.part_values.position[part_ind_m,:], part_per_part_m, axis = 0)
-        new_vel_m = numpy.repeat(species.part_values.velocity[part_ind_m,:], part_per_part_m, axis = 0)
-        #Adding a random 0.05*|vel| isotropic velocity so that the particles separate over time, and distributing them in space too
-        speed = numpy.linalg.norm(species.part_values.velocity[part_ind_m,:], axis = 1)
-        new_speeds = numpy.repeat(speed, part_per_part_m)*0.05
-        randg = numpy.random.rand(len(new_spwt_m),3)
-        angle = 2*numpy.pi*randg[:,0]
-        new_vel_m[:,0] += numpy.cos(angle)*new_speeds
-        new_vel_m[:,1] += numpy.sin(angle)*new_speeds
-        #NOTE: This is not mesh independent
-        new_pos_m[:,0] += (randg[:,1]*self.mesh.dx*0.1-self.mesh.dx*0.05)
-        new_pos_m[:,1] += (randg[:,2]*self.mesh.dy*0.1-self.mesh.dy*0.05)
+        new_spwt_m, new_pos_m, new_vel_m = self.createMoreParticles(species, parts, indices_m, part_ind_m)
+
         #Creation of new particles - fewer
         part_ind_f = numpy.zeros((0), dtype = numpy.int)
         part_ind_f = reduce(lambda acc, ind: numpy.append(acc, parts[ind]), indices_f, part_ind_f)
-        new_spwt_f, part_per_part_f = self.redistributeSPWTs(species, parts, indices_f)
-        new_pos_f = numpy.zeros((len(new_spwt_f), species.pos_dim))
-        new_vel_f = numpy.zeros((len(new_spwt_f), species.vel_dim))
-        for i in range(len(indices_f)):
-            for j in range(self.partoptimum):
-                new_pos_f[i*self.partoptimum+j,:] = numpy.average(species.part_values.position[parts[indices_f[i]][j::self.partoptimum],:],\
-                        weights = species.part_values.spwt[parts[indices_f[i]][j::self.partoptimum]], axis = 0)
-                new_vel_f[i*self.partoptimum+j,:] = numpy.average(species.part_values.velocity[parts[indices_f[i]][j::self.partoptimum],:],\
-                        weights = species.part_values.spwt[parts[indices_f[i]][j::self.partoptimum]], axis = 0)
+        new_spwt_f, new_pos_f, new_vel_f = self.createFewerParticles(species, parts, indices_f, part_ind_f)
+
         #Adding to variables in recursion
-        new_spwts[0] = numpy.append(new_spwts[0], numpy.append(new_spwt_m, new_spwt_f))
-        new_positions[0] = numpy.append(new_positions[0], numpy.append(new_pos_m, new_pos_f, axis = 0), axis = 0)
-        new_velocities[0] = numpy.append(new_velocities[0], numpy.append(new_vel_m, new_vel_f, axis = 0), axis = 0)
-        del_indices[0] = numpy.append(del_indices[0], numpy.append(part_ind_m, part_ind_f)).astype(numpy.int)
+        new_spwts[0] = numpy.append(new_spwts[0], numpy.append(numpy.append(new_spwt_m, new_spwt_f), new_spwt_h))
+        new_positions[0] = numpy.append(new_positions[0], numpy.append(numpy.append(new_pos_m, new_pos_f, axis = 0), new_pos_h, axis = 0), axis = 0)
+        new_velocities[0] = numpy.append(new_velocities[0], numpy.append(numpy.append(new_vel_m, new_vel_f, axis = 0), new_vel_h, axis = 0), axis = 0)
+        del_indices[0] = numpy.append(del_indices[0], numpy.append(numpy.append(part_ind_m, part_ind_f), part_ind_h).astype(numpy.int))
         #Constructing the new particles and eliminating old ones
         if self.root == True:
             self.mesh.boundaries[0].removeParticles(species, del_indices[0])
@@ -444,6 +455,69 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
                 positions, pos_ind = self.mesh.sortPositionsByMeshes(species.part_values.position[:species.part_values.current_n], return_ind = [], surface = False)
                 self.vtk_recursion(positions, part_per_node, acc_ind)
                 self.species[species.name] = part_per_node
+
+    def partitionHighSPWTParticles(self, species, pos, part, threshold = int(5)):
+        #Selecting which particles to partition
+        avg = numpy.mean(species.part_values.spwt[part])
+        ind = numpy.flatnonzero(species.part_values.spwt[part] > threshold*avg)
+        #Taking the partitioned particles out of the list of particles
+        new_pos = numpy.delete(pos, ind, axis = 0)
+        new_part = numpy.delete(part, ind)
+        part_ind_h = part[ind]
+        #Preparing the new particles
+        new_spwt_h, remainder = numpy.divmod(species.part_values.spwt[part_ind_h], threshold)
+        new_spwt_h = numpy.repeat(new_spwt_h, threshold)
+        new_spwt_h[0::threshold] += remainder
+        #New positions and velocities
+        new_pos_h = numpy.repeat(species.part_values.position[part_ind_h,:], threshold, axis = 0)
+        new_vel_h = numpy.repeat(species.part_values.velocity[part_ind_h,:], threshold, axis = 0)
+        #Adding a random 0.05*|vel| isotropic velocity so that the particles separate over time, and distributing them in space too
+        speed = numpy.linalg.norm(species.part_values.velocity[part_ind_h,:], axis = 1)
+        new_speeds = numpy.repeat(speed, threshold)*0.05
+        randg = numpy.random.rand(len(new_spwt_h),3)
+        angle = 2*numpy.pi*randg[:,0]
+        new_vel_h[:,0] += numpy.cos(angle)*new_speeds
+        new_vel_h[:,1] += numpy.sin(angle)*new_speeds
+        #NOTE: This is not mesh independent
+        new_pos_h[:,0] += (randg[:,1]*self.mesh.dx*0.1-self.mesh.dx*0.05)
+        new_pos_h[:,1] += (randg[:,2]*self.mesh.dy*0.1-self.mesh.dy*0.05)
+        #Return new values
+        return new_spwt_h, new_pos_h, new_vel_h, part_ind_h, new_pos, new_part
+
+
+    def createMoreParticles(self, species, parts, indices_m, part_ind_m):
+        #New SPWTs
+        new_spwt_m, part_per_part_m = self.redistributeSPWTs(species, parts, indices_m, direction = 'more')
+        #New positions and velocities
+        new_pos_m = numpy.repeat(species.part_values.position[part_ind_m,:], part_per_part_m, axis = 0)
+        new_vel_m = numpy.repeat(species.part_values.velocity[part_ind_m,:], part_per_part_m, axis = 0)
+        #Adding a random 0.05*|vel| isotropic velocity so that the particles separate over time, and distributing them in space too
+        speed = numpy.linalg.norm(species.part_values.velocity[part_ind_m,:], axis = 1)
+        new_speeds = numpy.repeat(speed, part_per_part_m)*0.05
+        randg = numpy.random.rand(len(new_spwt_m),3)
+        angle = 2*numpy.pi*randg[:,0]
+        new_vel_m[:,0] += numpy.cos(angle)*new_speeds
+        new_vel_m[:,1] += numpy.sin(angle)*new_speeds
+        #NOTE: This is not mesh independent
+        new_pos_m[:,0] += (randg[:,1]*self.mesh.dx*0.1-self.mesh.dx*0.05)
+        new_pos_m[:,1] += (randg[:,2]*self.mesh.dy*0.1-self.mesh.dy*0.05)
+        #Return new values
+        return new_spwt_m, new_pos_m, new_vel_m
+
+    def createFewerParticles(self, species, parts, indices_f, part_ind_f):
+        #New SPWTs
+        new_spwt_f, part_per_part_f = self.redistributeSPWTs(species, parts, indices_f, direction = 'fewer')
+        #New positions and velocities
+        new_pos_f = numpy.zeros((len(new_spwt_f), species.pos_dim))
+        new_vel_f = numpy.zeros((len(new_spwt_f), species.vel_dim))
+        for i in range(len(indices_f)):
+            for j in range(self.partoptimum):
+                new_pos_f[i*self.partoptimum+j,:] = numpy.average(species.part_values.position[parts[indices_f[i]][j::self.partoptimum],:],\
+                        weights = species.part_values.spwt[parts[indices_f[i]][j::self.partoptimum]], axis = 0)
+                new_vel_f[i*self.partoptimum+j,:] = numpy.average(species.part_values.velocity[parts[indices_f[i]][j::self.partoptimum],:],\
+                        weights = species.part_values.spwt[parts[indices_f[i]][j::self.partoptimum]], axis = 0)
+        #Return new vales
+        return new_spwt_f, new_pos_f, new_vel_f
 
     def vtk_recursion(self, positions, field, acc_ind):
         temp = acc_ind[0]

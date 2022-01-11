@@ -208,6 +208,7 @@ class Electrostatic_2D_rm(Electric_Field):
             rho[loc] += specie.mesh_values.accDensity*specie.q
         rho /= -c.EPS_0
         slv.poissonSolver_2D_rm_SORCA_p(self.pic.mesh, self.potential, rho, self.ind_calc)
+        #self.potential*= 0
         self.field = -slv.derive_2D_rm(self.pic.mesh, self.potential, self.ind_calc)
         for boundary in self.pic.mesh.boundaries:
             boundary.applyElectricBoundary(self)

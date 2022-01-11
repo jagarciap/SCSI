@@ -251,6 +251,7 @@ class Boris_Push(Motion_Solver):
         if update_dic == 1:
             self.vel_dic[species.name] = copy.copy(species.part_values.velocity)
         order = self.pic.mesh.boundaries if boundaries_order == None else boundaries_order
+        #pdb.set_trace()
         for boundary, type_boundary in zip_longest(order, types_boundary, fillvalue = types_boundary[0]):
             result_boundary = boundary.applyParticleBoundary(species, type_boundary, old_position = old_position, **kwargs)
             if result_boundary is not None:

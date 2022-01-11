@@ -1,4 +1,6 @@
-rm  -r ./results/*
-rm ./results_particles/*
-rm ./particle_tracker/*
-rm ./previous_executions/*
+rm -r ./results/*
+rm -r ./results_particles/*
+rm -r ./particle_tracker/*
+rm -r ./previous_executions/*
+rm ./py_files/log.txt
+rm ./py_files/mprofile_*

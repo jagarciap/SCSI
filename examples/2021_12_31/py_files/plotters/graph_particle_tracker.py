@@ -14,7 +14,7 @@ sys.path.insert(0,'..')
 import constants as c
 
 #colors = {'Proton - Solar wind': 'red', 'Electron - Solar wind': 'blue', 'Electron - Photoelectron': 'black'}
-colors = {'Proton - Solar wind': 'white', 'Electron - Solar wind': 'white', 'Electron - Photoelectron': 'black', 'Electron - SEE': 'pink'}
+colors = {'Proton': 'red', 'Electron': 'white'}
 
 class Species_Plotter(object):
     def __init__(self, name, num_tracked, pos_dim, ts):
@@ -54,7 +54,7 @@ def load_files(ind):
     return species
 
 def create_figure():
-    augment = 0.015
+    augment = 20
     inch = 0.0254
     DX = (c.XMAX-c.XMIN)
     DY = (c.YMAX-c.YMIN)
@@ -63,10 +63,10 @@ def create_figure():
     fig = figure(figsize=(DX/inch*augment,DY/inch*augment))
     ax = fig.add_subplot(111)
 
-    plt.axvline(x = c.XMINSAT, ymin = (c.YMINSAT-c.YMIN)/DY, ymax = (c.YMAXSAT-c.YMIN)/DY, color = 'black')
-    plt.axvline(x = c.XMAXSAT, ymin = (c.YMINSAT-c.YMIN)/DY, ymax = (c.YMAXSAT-c.YMIN)/DY, color = 'black')
-    plt.axhline(y = c.YMINSAT, xmin = c.XMINSAT/DX, xmax = c.XMAXSAT/DY, color = 'black')
-    plt.axhline(y = c.YMAXSAT, xmin = c.XMINSAT/DX, xmax = c.XMAXSAT/DY, color = 'black')
+    #plt.axvline(x = c.XMINSAT, ymin = (c.YMINSAT-c.YMIN)/DY, ymax = (c.YMAXSAT-c.YMIN)/DY, color = 'black')
+    #plt.axvline(x = c.XMAXSAT, ymin = (c.YMINSAT-c.YMIN)/DY, ymax = (c.YMAXSAT-c.YMIN)/DY, color = 'black')
+    #plt.axhline(y = c.YMINSAT, xmin = c.XMINSAT/DX, xmax = c.XMAXSAT/DY, color = 'black')
+    #plt.axhline(y = c.YMAXSAT, xmin = c.XMINSAT/DX, xmax = c.XMAXSAT/DY, color = 'black')
 
     ax.xaxis.set_major_locator(ticker.NullLocator())
     gridx = numpy.arange(c.XMIN+dx, c.XMAX, dx)
@@ -160,7 +160,7 @@ class IndexTracker:
 
 
 
-ts = numpy.arange(1500,2431)
+ts = numpy.arange(1,43463,300)
 
 fig, ax = create_figure()
 tracker = IndexTracker(ax, load_files(ts))

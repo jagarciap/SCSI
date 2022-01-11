@@ -88,9 +88,7 @@ def loading_particles(filenames):
 def select_by_position(data, pos, radius = 0.3):
     dim_pos = len(pos)
     pos = numpy.asarray(pos)
-    ind = numpy.flatnonzero(numpy.linalg.norm(data[:,:dim_pos]-pos, axis = 1) < radius)
-    return data[ind,:]
-
+    ind = numpy.flatnonzero(numpy.linalg.norm(data[:,:dim_pos]-pos, axis = 1) < radius) return data[ind,:] 
 def check_ParticlesTXT():
     #Loading the files
     filenames = ['ts00599.dat']
@@ -107,5 +105,5 @@ def check_ParticlesTXT():
     checking_angular_distribution(filtered[:,2:], title = species+"-"+str(pos))
     pdb.set_trace()
 
-checking_sampleIsotropicVelocity()
-check_ParticlesTXT()
+#checking_sampleIsotropicVelocity()
+#check_ParticlesTXT()
