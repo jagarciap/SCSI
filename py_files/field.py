@@ -224,12 +224,13 @@ class Electrostatic_2D_rm(Electric_Field):
 #       +Neumann([ind] location, [double] valus) = Set Neumann conditions in the nodes at 'location'.
 #           +values account for the values of the e_field normal to the border.
 #           +Note: The Function doesn't handle the situation of the corners.
-    def neumann(self, location, values):
+    def neumann(self, boundary, values):
         # Variables at hand
         nx = self.pic.mesh.nx
         ny = self.pic.mesh.ny
         dx = self.pic.mesh.dx
         dy = self.pic.mesh.dy
+        location = boundary.location
         #Field and potential
         for i in range(len(location)):
             if location[i] < nx:
@@ -244,6 +245,7 @@ class Electrostatic_2D_rm(Electric_Field):
             else:
                 self.field[location[i],0] = values[i]
                 self.potential[location[i]] = -self.field[location[i], 0]*dx+self.potential[location[i]-1]
+        self.field[location,:] = -slv.derive_2D_rm_boundaries(self.potential, boundary, nx, ny, dx, dy)
 
 
 #Electrostatic_2D_rm_sat (Inherits from Electrostatic_2D_rm):

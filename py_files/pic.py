@@ -109,6 +109,18 @@ class PIC_2D_rm1o(PIC):
         
         index = mc.astype(int)
         array = self.mesh.indexToArray(index)
+
+        #Not raising an error due to particles outside the domain, but notifying in the log
+        mask = numpy.logical_and(array >= 0, array < self.mesh.nPoints)
+        mc = mc[mask,:]
+        index = index[mask,:]
+        values = values[mask]
+        array = array[mask]
+
+        if numpy.all(mask) != True:
+            print("ERROR: Particles considered outside of domain")
+            print("Particles indeces: ", mc[numpy.logical_not(mask)])
+
         di = numpy.around(mc[:,0] - index[:,0], decimals = c.INDEX_PREC)
         dj = numpy.around(mc[:,1] - index[:,1], decimals = c.INDEX_PREC)
 
@@ -239,8 +251,16 @@ class PIC_2D_rm1o(PIC):
         
         index = mc.astype(int)
         array = self.mesh.indexToArray(index)
-        di = numpy.around(mc[:,0] - index[:,0], decimals = c.INDEX_PREC)
-        dj = numpy.around(mc[:,1] - index[:,1], decimals = c.INDEX_PREC)
+
+        #Not raising an error due to particles outside the domain, but notifying in the log
+        mask = numpy.logical_and(array >= 0, array < self.mesh.nPoints)
+        array = array[mask]
+        if numpy.all(mask) != True:
+            print("ERROR: Particles considered outside of domain")
+            print("Particles indeces: ", mc[numpy.logical_not(mask)])
+        
+        di = numpy.around(mc[mask][:,0] - index[mask][:,0], decimals = c.INDEX_PREC)
+        dj = numpy.around(mc[mask][:,1] - index[mask][:,1], decimals = c.INDEX_PREC)
 
         #Dealing with nodes
         filter_i = di > prec
@@ -251,10 +271,10 @@ class PIC_2D_rm1o(PIC):
         dj = numpy.repeat(dj[:,None], numpy.shape(field)[1], axis = 1)
 
         #From mesh to particles, summing in every dimension through different columns
-        values += field[array,:]*(1-di)*(1-dj)
-        values[filter_i] += field[array[filter_i]+1,:]*di[filter_i]*(1-dj[filter_i])
-        values[filter_j] += field[array[filter_j]+self.mesh.nx,:]*(1-di[filter_j])*dj[filter_j]
-        values[numpy.logical_and(filter_i, filter_j)] += field[array[numpy.logical_and(filter_i, filter_j)]+self.mesh.nx+1,:]*di[numpy.logical_and(filter_i, filter_j)]*dj[numpy.logical_and(filter_i, filter_j)]
+        values[mask] += field[array,:]*(1-di)*(1-dj)
+        values[mask][filter_i] += field[array[filter_i]+1,:]*di[filter_i]*(1-dj[filter_i])
+        values[mask][filter_j] += field[array[filter_j]+self.mesh.nx,:]*(1-di[filter_j])*dj[filter_j]
+        values[mask][numpy.logical_and(filter_i, filter_j)] += field[array[numpy.logical_and(filter_i, filter_j)]+self.mesh.nx+1,:]*di[numpy.logical_and(filter_i, filter_j)]*dj[numpy.logical_and(filter_i, filter_j)]
 
         return values
 

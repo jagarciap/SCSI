@@ -46,7 +46,7 @@ def poissonSolver_2D_rm_SORCA_p(mesh, pot, rhs, ind_pot, err = 1e-6, step_limit 
     #w = 2/(1-numpy.pi/mesh.nx)
     if border:
         nx = int(mesh.nx+2)
-        offset = (ind_pot//mesh.nx)*2+1+nx+2
+        offset = (ind_pot//mesh.nx)*2+1+nx
         n_pot = numpy.zeros((int(mesh.nx+2), int(mesh.ny+2)))
         n_pot[1:-1,1:-1] = pot.reshape((mesh.nx, mesh.ny), order = 'F')
         n_pot = n_pot.reshape(int((mesh.nx+2)*(mesh.ny+2)), order = 'F')

@@ -1,0 +1,98 @@
+{
+	mesh = Mesh_2D_cm_sat_recursive
+	{
+		xmin = 0.0
+		xmax = 22.0
+		ymin = 0.0
+		ymax = 10.0
+		xminsat = 7.0
+		xmaxsat = 8.2
+		yminsat = 0.0
+		ymaxsat = 0.6
+		dx = 0.1
+		dy = 0.1
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = True
+		id = '0'
+		start_ind = 0
+	}
+	boundary_0 = Outer_2D_Cylindrical
+	{
+		xmin = 0.0
+		xmax = 22.0
+		ymin = 0.0
+		ymax = 10.0
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Cylindrical
+	{
+		xmin = 7.0
+		xmax = 8.2
+		ymin = 0.0
+		ymax = 0.6
+		material = 'satellite'
+	}
+	pic = PIC_2D_cm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = True
+	}
+	field = Electrostatic_2D_cm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = True
+	}
+}
+{
+	mesh = Mesh_2D_cm_sat_recursive
+	{
+		xmin = 5.0
+		xmax = 10.2
+		ymin = 0.0
+		ymax = 2.6
+		xminsat = 7.0
+		xmaxsat = 8.2
+		yminsat = 0.0
+		ymaxsat = 0.6
+		dx = 0.02
+		dy = 0.02
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = False
+		id = '0-0'
+		start_ind = 50
+	}
+	boundary_0 = Outer_2D_Cylindrical
+	{
+		xmin = 5.0
+		xmax = 10.2
+		ymin = 0.0
+		ymax = 2.6
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Cylindrical
+	{
+		xmin = 7.0
+		xmax = 8.2
+		ymin = 0.0
+		ymax = 0.6
+		material = 'satellite'
+	}
+	pic = PIC_2D_cm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = False
+	}
+	field = Electrostatic_2D_cm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = False
+	}
+}

@@ -1,0 +1,155 @@
+#-------------------------------------------------------------------------------
+# This mesh is visually shown in the file
+# All the meshes are 2D rectangular meshes, with an interior
+# boundary which represents the satellite.
+#-------------------------------------------------------------------------------
+{
+	mesh = Mesh_2D_rm_sat_recursive
+	{
+		xmin = 0.0
+		xmax = 50.0
+		ymin = -20.0
+		ymax = 20.0
+		xminsat = 18.0
+		xmaxsat = 20.0
+		yminsat = -0.5
+		ymaxsat = 0.5
+		dx = 0.5
+		dy = 0.5
+		depth = 1.0467
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = True
+		id = '0'
+		start_ind = 0
+	}
+	boundary_0 = Outer_2D_Rectangular
+	{
+		xmin = 0.0
+		xmax = 50.0
+		ymin = -20.0
+		ymax = 20.0
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Rectangular
+	{
+		xmin = 18.0
+		xmax = 20.0
+		ymin = -0.5
+		ymax = 0.5
+		material = 'satellite'
+	}
+	pic = PIC_2D_rm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = True
+	}
+	field = Electrostatic_2D_rm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = True
+	}
+}
+{
+	mesh = Mesh_2D_rm_sat_recursive
+	{
+		xmin = 13.0
+		xmax = 30.0
+		ymin = -10.0
+		ymax = 10.0
+		xminsat = 18.0
+		xmaxsat = 20.0
+		yminsat = -0.5
+		ymaxsat = 0.5
+		dx = 0.1
+		dy = 0.1
+		depth = 1.0467
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = False
+		id = '0-0'
+		start_ind = 2046
+	}
+	boundary_0 = Outer_2D_Rectangular
+	{
+		xmin = 13.0
+		xmax = 30.0
+		ymin = -10.0
+		ymax = 10.0
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Rectangular
+	{
+		xmin = 18.0
+		xmax = 20.0
+		ymin = -0.5
+		ymax = 0.5
+		material = 'satellite'
+	}
+	pic = PIC_2D_rm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = False
+	}
+	field = Electrostatic_2D_rm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = False
+	}
+}
+{
+	mesh = Mesh_2D_rm_sat_recursive
+	{
+		xmin = 16.0
+		xmax = 22.0
+		ymin = -3.5
+		ymax = 3.5
+		xminsat = 18.0
+		xmaxsat = 20.0
+		yminsat = -0.5
+		ymaxsat = 0.5
+		dx = 0.02
+		dy = 0.02
+		depth = 1.0467
+		boundaries = ['boundary_0', 'boundary_1']
+		children = []
+		root = False
+		id = '0-0-0'
+		start_ind = 11145
+	}
+	boundary_0 = Outer_2D_Rectangular
+	{
+		xmin = 16.0
+		xmax = 22.0
+		ymin = -3.5
+		ymax = 3.5
+		material = 'space'
+	}
+	boundary_1 = Inner_2D_Rectangular
+	{
+		xmin = 18.0
+		xmax = 20.0
+		ymin = -0.5
+		ymax = 0.5
+		material = 'satellite'
+	}
+	pic = PIC_2D_rm1o_recursive
+	{
+		mesh = ''
+		children = []
+		root = False
+	}
+	field = Electrostatic_2D_rm_sat_cond_recursive
+	{
+		pic = ''	
+		field_dim = c.DIM
+		children = []
+		root = False
+	}
+}

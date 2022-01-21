@@ -172,7 +172,7 @@ class Particle_reformer_uniform_recursive(Particle_reformer_recursive, Particle_
         filter_1 = self.mesh.particleReformNodes()
         filter_2 = count > self.partmax
         #filter_species
-        if (species.name == "Electron - Photoelectron" or species.name == "Electron - SEE") and self.mesh.id == '0-0':
+        if (species.name == "Electron - Photoelectron" or species.name == "Electron - SEE") and self.mesh.id == '0-0-0':
             filter_2[:] = False
         filter_3 = numpy.logical_and(count < self.partmin, count > 5)
         #filter_3 = count < self.partmin
@@ -416,7 +416,7 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
         filter_1 = self.mesh.particleReformNodes()
         filter_2 = count > self.partmax
         #filter_species
-        if (species.name == "Electron - Photoelectron" or species.name == "Electron - SEE") and self.mesh.id == '0-0':
+        if (species.name == "Electron - Photoelectron" or species.name == "Electron - SEE") and self.mesh.id == '0-0-0':
             filter_2[:] = False
         filter_3 = numpy.logical_and(count < self.partmin, count > 3)
         indices_f = indices[numpy.logical_and(filter_1, filter_2)]
@@ -439,16 +439,64 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
         new_spwt_f, new_pos_f, new_vel_f = self.createFewerParticles(species, parts, indices_f, part_ind_f)
 
         #Adding to variables in recursion
-        new_spwts[0] = numpy.append(new_spwts[0], numpy.append(numpy.append(new_spwt_m, new_spwt_f), new_spwt_h))
-        new_positions[0] = numpy.append(new_positions[0], numpy.append(numpy.append(new_pos_m, new_pos_f, axis = 0), new_pos_h, axis = 0), axis = 0)
-        new_velocities[0] = numpy.append(new_velocities[0], numpy.append(numpy.append(new_vel_m, new_vel_f, axis = 0), new_vel_h, axis = 0), axis = 0)
-        del_indices[0] = numpy.append(del_indices[0], numpy.append(numpy.append(part_ind_m, part_ind_f), part_ind_h).astype(numpy.int))
+        #new_spwts[0] = numpy.append(new_spwts[0], numpy.append(numpy.append(new_spwt_m, new_spwt_f), new_spwt_h))
+        #new_positions[0] = numpy.append(new_positions[0], numpy.append(numpy.append(new_pos_m, new_pos_f, axis = 0), new_pos_h, axis = 0), axis = 0)
+        #new_velocities[0] = numpy.append(new_velocities[0], numpy.append(numpy.append(new_vel_m, new_vel_f, axis = 0), new_vel_h, axis = 0), axis = 0)
+        #del_indices[0] = numpy.append(del_indices[0], numpy.append(numpy.append(part_ind_m, part_ind_f), part_ind_h).astype(numpy.int))
+        new_spwts[0] = numpy.append(new_spwts[0], numpy.append(new_spwt_m, new_spwt_f))
+        new_positions[0] = numpy.append(new_positions[0], numpy.append(new_pos_m, new_pos_f, axis = 0), axis = 0)
+        new_velocities[0] = numpy.append(new_velocities[0], numpy.append(new_vel_m, new_vel_f, axis = 0), axis = 0)
+        del_indices[0] = numpy.append(del_indices[0], numpy.append(part_ind_m, part_ind_f).astype(numpy.int))
         #Constructing the new particles and eliminating old ones
         if self.root == True:
             self.mesh.boundaries[0].removeParticles(species, del_indices[0])
             self.mesh.boundaries[0].addParticles(species, new_positions[0], new_velocities[0], spwt = new_spwts[0])
             print("Mesh reformed. Species: {}".format(species.name))
             print("{:d} indices were affected, {:d} particles were added, {:d} particles were eliminated".format(len(indices), len(new_spwts[0]), len(del_indices[0])))
+            if self.vtk == True:
+                acc_ind = [0]
+                part_per_node = numpy.zeros((self.mesh.accPoints))
+                positions, pos_ind = self.mesh.sortPositionsByMeshes(species.part_values.position[:species.part_values.current_n], return_ind = [], surface = False)
+                self.vtk_recursion(positions, part_per_node, acc_ind)
+                self.species[species.name] = part_per_node
+            #self.computeParticleReform_HighSPWTParticles(species)
+
+    def computeParticleReform_HighSPWTParticles(self, species, positions = None, acc_ind = None, pos_ind = None, new_positions = None, new_velocities = None, new_spwts = None, del_indices = None):
+        #Tree structure section
+        if self.root == True:
+            positions, pos_ind = self.mesh.sortPositionsByMeshes(species.part_values.position[:species.part_values.current_n], return_ind = [], surface = True)
+            acc_ind = [0]
+            new_positions = [numpy.zeros((0,species.pos_dim))]
+            new_velocities = [numpy.zeros((0,species.vel_dim))]
+            new_spwts = [numpy.zeros((0))]
+            del_indices = [numpy.zeros((0), dtype = numpy.int)]
+        pos = positions.pop(0)
+        part = pos_ind.pop(0)
+        acc_ind[0] += self.mesh.nPoints
+        for child in self.children:
+            child.computeParticleReform_HighSPWTParticles(species, positions = positions, acc_ind = acc_ind, pos_ind = pos_ind,\
+                    new_positions = new_positions, new_velocities = new_velocities, new_spwts = new_spwts, del_indices = del_indices)
+        #Splitting particles with high SPWT
+        #Filtering particles close to borders
+        mc = self.mesh.getIndex(pos)
+        index = mc.astype(int)
+        array = self.mesh.indexToArray(index)
+        filter_1 = self.mesh.particleReformNodes()
+        filter_part = numpy.isin(array, filter_1)
+
+        new_spwt_h, new_pos_h, new_vel_h, part_ind_h, new_pos, new_part = self.partitionHighSPWTParticles(species, pos[filter_part,:], part[filter_part])
+
+        #Adding to variables in recursion
+        new_spwts[0] = numpy.append(new_spwts[0], new_spwt_h)
+        new_positions[0] = numpy.append(new_positions[0],  new_pos_h, axis = 0)
+        new_velocities[0] = numpy.append(new_velocities[0], new_vel_h, axis = 0)
+        del_indices[0] = numpy.append(del_indices[0], part_ind_h.astype(numpy.int))
+        #Constructing the new particles and eliminating old ones
+        if self.root == True:
+            self.mesh.boundaries[0].removeParticles(species, del_indices[0])
+            self.mesh.boundaries[0].addParticles(species, new_positions[0], new_velocities[0], spwt = new_spwts[0])
+            print("Mesh reformed. Species: {}".format(species.name))
+            print("{:d} particles were added, {:d} particles were eliminated".format(len(new_spwts[0]), len(del_indices[0])))
             if self.vtk == True:
                 acc_ind = [0]
                 part_per_node = numpy.zeros((self.mesh.accPoints))
@@ -473,14 +521,14 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
         new_vel_h = numpy.repeat(species.part_values.velocity[part_ind_h,:], threshold, axis = 0)
         #Adding a random 0.05*|vel| isotropic velocity so that the particles separate over time, and distributing them in space too
         speed = numpy.linalg.norm(species.part_values.velocity[part_ind_h,:], axis = 1)
-        new_speeds = numpy.repeat(speed, threshold)*0.05
+        new_speeds = numpy.repeat(speed, threshold)*0.1
         randg = numpy.random.rand(len(new_spwt_h),3)
         angle = 2*numpy.pi*randg[:,0]
         new_vel_h[:,0] += numpy.cos(angle)*new_speeds
         new_vel_h[:,1] += numpy.sin(angle)*new_speeds
         #NOTE: This is not mesh independent
-        new_pos_h[:,0] += (randg[:,1]*self.mesh.dx*0.1-self.mesh.dx*0.05)
-        new_pos_h[:,1] += (randg[:,2]*self.mesh.dy*0.1-self.mesh.dy*0.05)
+        new_pos_h[:,0] += (randg[:,1]*self.mesh.dx-self.mesh.dx*0.5)
+        new_pos_h[:,1] += (randg[:,2]*self.mesh.dy-self.mesh.dy*0.5)
         #Return new values
         return new_spwt_h, new_pos_h, new_vel_h, part_ind_h, new_pos, new_part
 

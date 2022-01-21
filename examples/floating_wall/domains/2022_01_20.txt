@@ -1,0 +1,55 @@
+#Set up for studying Debye shielding in a wall of constant potential.
+{
+	mesh = Mesh_2D_rm_separateBorders
+	{
+		xmin = 0.0
+		xmax = 0.01848
+		ymin = 0.0
+		ymax = 0.00154
+		dx = 3.08e-4
+		dy = 3.08e-4
+		depth = 0.00154
+		boundaries = ['boundary_0', 'boundary_1', 'boundary_2', 'boundary_3']
+	}
+	boundary_0 = Outer_1D_Rectangular
+	{
+		xmin = 0.0
+		xmax = 0.01848
+		ymin = 0.0
+		ymax = 0.0
+		material = 'space'
+	}
+	boundary_1 = Outer_1D_Rectangular
+	{
+		xmin = 0.01848
+		xmax = 0.01848
+		ymin = 0.0
+		ymax = 0.00154
+		material = 'wall'
+	}
+	boundary_2 = Outer_1D_Rectangular
+	{
+		xmin = 0.0
+		xmax = 0.01848
+		ymin = 0.00154
+		ymax = 0.00154
+		material = 'space'
+	}
+	boundary_3 = Outer_1D_Rectangular
+	{
+		xmin = 0.0
+		xmax = 0.0
+		ymin = 0.0
+		ymax = 0.00154
+		material = 'space'
+	}
+	pic = PIC_2D_rm1o
+	{
+		mesh = ''
+	}
+	field = Electrostatic_2D_rm_sat_cond
+	{
+		pic = ''	
+		field_dim = c.DIM
+	}
+}

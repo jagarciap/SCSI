@@ -296,16 +296,6 @@ try:
         #Solving the fields
         system.at['e_field'].computeField([system.at['protons'], system.at['electrons'], system.at['photoelectrons'], system.at['see']])
 
-        # Electron motion
-        if system.at['ts']%c.E_TS == 0:
-            advance_dict_e = SWE()
-            PHE()
-            SEE(advance_dict_e)
-
-        # Protons motion
-        if system.at['ts']%c.P_TS == 0:
-            SWP()
-
         #Particle reforming for the different species
         if system.at['ts']%c.PR_E_TS == 0:
         #if system.at['ts']%c.PR_E_TS == 0 and system.at['ts'] != 0:
@@ -316,6 +306,16 @@ try:
         if system.at['ts']%c.PR_P_TS == 0:
         #if system.at['ts']%c.PR_P_TS == 0 and system.at['ts'] != 0:
             system.at['part_reformer'].computeParticleReform(system.at['protons'])
+
+        # Electron motion
+        if system.at['ts']%c.E_TS == 0:
+            advance_dict_e = SWE()
+            PHE()
+            SEE(advance_dict_e)
+
+        # Protons motion
+        if system.at['ts']%c.P_TS == 0:
+            SWP()
 
         #Output vtk
         if system.at['ts']%c.VTK_TS == 0 and system.at['ts'] != 0:
