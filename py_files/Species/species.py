@@ -133,3 +133,21 @@ class Particles(object):
         data = "{:6d}-{:1d}-{:1d}".format(self.current_n, numpy.shape(self.position)[1], numpy.shape(self.velocity)[1])
         array = numpy.append(self.position[:self.current_n,:], self.velocity[:self.current_n,:], axis = 1)
         return data, names, array
+
+#NOTE: This is not generic anymore, it is mesh dependent. This method should go in 'mesh' classes.
+    def saveParticlesTXT_region(self):
+        #Defining the region
+        def particle_in_region(pos):
+            #Recangular region
+            xmin = 8.0
+            xmax = 10.0
+            ymin = 0.0
+            ymax = 1.0
+            return numpy.logical_and(\
+                    numpy.logical_and(pos[:,0] > xmin, pos[:,0] < xmax),\
+                    numpy.logical_and(pos[:,1] > ymin, pos[:,1] < ymax))
+        mask = particle_in_region(self.position[:self.current_n,:])
+        names = "position\tvelocity"
+        data = "{:6d}-{:1d}-{:1d}".format(self.current_n, numpy.shape(self.position)[1], numpy.shape(self.velocity)[1])
+        array = numpy.append(self.position[:self.current_n,:][mask,:], self.velocity[:self.current_n,:][mask,:], axis = 1)
+        return data, names, array

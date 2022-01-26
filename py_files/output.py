@@ -125,6 +125,39 @@ def saveParticlesTXT(sys_dic, keys):
     numpy.savetxt(filename, arrays, fmt = '%+.6e', delimiter = '\t', header = nHeader)
 
 
+#       +saveParticlesTXT(dict sys_dic, [String] keys) = Stores the values of positions and velocities of the different species at a certain time.
+#           The file is created with the format "ts{step number}.dat" and stores the information in columns as:
+#           columns for position, followed by columns for velocity, one of these blocks for each species, ordered in alphabetical order.
+#           The difference with 'saveParticlesTXT_region' is that it prints only the particles that are inside am user-defined region.
+@Timing
+def saveParticlesTXT_region(sys_dic, keys):
+    #Preparing path
+    cwd = os.path.split(os.getcwd())[0]
+    filename = os.path.join(cwd,'results_particles','ts{:05d}.dat'.format(sys_dic[keys[0]]))
+    species_id = []
+    attributes = []
+    arrays = []
+    for key in keys[1:]:
+        n_id, n_att, n_array = sys_dic[key].saveParticlesTXT_region()
+        species_id.append(n_id)
+        attributes.append(n_att)
+        if key == keys[1]:
+            arrays = n_array
+        else:
+            diff = arrays.shape[0]-n_array.shape[0]
+            if diff < 0:
+                fill = numpy.zeros((-diff, arrays.shape[1]))
+                arrays = numpy.append(arrays, fill, axis = 0)
+            else:
+                fill = numpy.zeros((diff, n_array.shape[1]))
+                n_array = numpy.append(n_array, fill, axis = 0)
+            arrays = numpy.append(arrays, n_array, axis = 1)
+    first_row = '\t'.join(species_id)
+    second_row = '\t'.join(attributes)
+    nHeader = first_row+'\n'+second_row
+    numpy.savetxt(filename, arrays, fmt = '%+.6e', delimiter = '\t', header = nHeader)
+
+
 #       +saveTimes(int ts, dict dictionary) = Stores execution times in a file. If it is the first step in the simulation, the file is created. Otherwise,
 #           values are appended at the end of the file.
 def saveTimes(ts, dictionary):

@@ -17,7 +17,7 @@ P_DT= 1e-8            # time step size
 E_DT = 1e-9        # time step for electron dynamics
 E_TS = 1    #Timesteps required for execution of electron dynamics
 P_TS = 10   #Timesteps required for protons dynamics
-VTK_TS = 30 #Timesteps required for printing of VTK files
+VTK_TS = 300 #Timesteps required for printing of VTK files
 PR_E_TS = 10 #Timesteps used for checking the electrons per cell in the domain
 PR_P_TS = 100 #Timesteps used for checking the electrons per cell in the domain
 

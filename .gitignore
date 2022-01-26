@@ -3,6 +3,7 @@
 /workspace.xml
 *.pyc
 *.nbi
+*.pkl
 google_drive.sh
 cases/**
 previous_executions/**

@@ -604,6 +604,7 @@ def angle_velocity_photoelectron(data, names):
 
 data ={}
 names = [\
+        "Electric - Electrostatic_2D_rm_sat-potential",\
         "Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux",\
         "Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux",\
         "Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density",\
@@ -644,13 +645,13 @@ for name, array in zip(names, results):
 ###debye_length_test(["Electric - Electrostatic_2D_rm-potential"])
 #wall_potential(["Electric - Electrostatic_2D_rm_sat-potential"])
 ###wall_density_diff(["Electron - Solar wind-density", "Proton - Solar wind-density"])
-#satellite_potential_time(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
+satellite_potential_time(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
 #satellite_potential_FT(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
 #density_FT(data, "Electron - Solar wind-density")
-#current_collected_time(data, ["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"])
-#current_collected_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"])
-#current_recollection_percentage_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\
-#                                     ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
+current_collected_time(data, ["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"])
+current_collected_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"])
+current_recollection_percentage_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\
+                                     ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
 ##approx_velocity_wall(["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"],\
 ##                     ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"])
 ##approx_velocity_wall(["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\
@@ -659,8 +660,8 @@ for name, array in zip(names, results):
 #                               ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
 #surface_charge_density_time(["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
 #                            [c.QE, c.QE, c.QE, -c.QE])
-#net_surface_charge_density_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
-#                            [c.QE, c.QE, c.QE, -c.QE])
-#total_surface_charge_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
-#                            [c.QE, c.QE, c.QE, -c.QE])
-angle_velocity_photoelectron(data, ["Electron - Photoelectron-velocity"])
+net_surface_charge_density_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
+                            [c.QE, c.QE, c.QE, -c.QE])
+total_surface_charge_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
+                            [c.QE, c.QE, c.QE, -c.QE])
+#angle_velocity_photoelectron(data, ["Electron - Photoelectron-velocity"])

@@ -53,7 +53,7 @@ class System(object):
         self.at['mesh'].print()
         self.at['electrons'] = Electron(0.0, c.E_SPWT, c.E_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED, "")
         #self.at['protons'] = Proton(0.0, c.P_SPWT, c.P_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED, "")
-        self.at['protons'] = User_Defined(c.P_DT, -2*c.QE, 4.002602*c.AMU, 0.0, c.P_SPWT, c.P_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED, "Helium")
+        self.at['protons'] = User_Defined(c.P_DT, -1*c.QE, 4.002602*c.AMU, 0.0, c.P_SPWT, c.P_SIZE, c.DIM, c.DIM, self.at['mesh'].nPoints, self.at['mesh'].location_sat, c.NUM_TRACKED, "Helium")
         #self.at['user'] = User_Defined(c.P_DT, -c.QE, c.MP, 0, c.P_SPWT, 1, c.DIM, c.DIM, self.at['mesh'].nPoints, 0, "1")
         self.at['m_field'] = Constant_Magnetic_Field(self.at['pic'], c.B_DIM)
         self.at['part_solver'] = Boris_Push(self.at['pic'], [self.at['electrons'].name, self.at['protons'].name],\
@@ -271,8 +271,8 @@ try:
             out.saveVTK(system.at['mesh'], system.at, system.arrangeVTK())
         #if system.at['ts']%100000 == 100000-1:
         #    out.saveParticlesTXT(old_system.at, system.arrangeParticlesTXT())
-        if system.at['ts']%2 == 0:
-            out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'])
+        #if system.at['ts']%2 == 0:
+        #    out.particleTracker(old_system.at['ts'], old_system.at['protons'], old_system.at['electrons'])
     
         #Updating previous state
         deepcopy = Timing(copy.deepcopy)

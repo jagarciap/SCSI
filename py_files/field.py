@@ -768,7 +768,7 @@ class Electrostatic_2D_cm_sat_cond_recursive(Field_recursive, Electrostatic_2D_c
 
             try:
                 self.capacity = numpy.linalg.inv(self.inv_capacity)
-                att = 4e-4
+                att = 8e-3
                 self.capacity *= c.EPS_0*att
                 self.inv_capacity /= c.EPS_0*att
             except numpy.linalg.LinAlgError:

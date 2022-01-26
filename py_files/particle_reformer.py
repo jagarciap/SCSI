@@ -459,7 +459,7 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
                 positions, pos_ind = self.mesh.sortPositionsByMeshes(species.part_values.position[:species.part_values.current_n], return_ind = [], surface = False)
                 self.vtk_recursion(positions, part_per_node, acc_ind)
                 self.species[species.name] = part_per_node
-            #self.computeParticleReform_HighSPWTParticles(species)
+            self.computeParticleReform_HighSPWTParticles(species)
 
     def computeParticleReform_HighSPWTParticles(self, species, positions = None, acc_ind = None, pos_ind = None, new_positions = None, new_velocities = None, new_spwts = None, del_indices = None):
         #Tree structure section
@@ -541,14 +541,14 @@ class Particle_reformer_particle_recursive(Particle_reformer_recursive, Particle
         new_vel_m = numpy.repeat(species.part_values.velocity[part_ind_m,:], part_per_part_m, axis = 0)
         #Adding a random 0.05*|vel| isotropic velocity so that the particles separate over time, and distributing them in space too
         speed = numpy.linalg.norm(species.part_values.velocity[part_ind_m,:], axis = 1)
-        new_speeds = numpy.repeat(speed, part_per_part_m)*0.05
+        new_speeds = numpy.repeat(speed, part_per_part_m)*0.1
         randg = numpy.random.rand(len(new_spwt_m),3)
         angle = 2*numpy.pi*randg[:,0]
         new_vel_m[:,0] += numpy.cos(angle)*new_speeds
         new_vel_m[:,1] += numpy.sin(angle)*new_speeds
         #NOTE: This is not mesh independent
-        new_pos_m[:,0] += (randg[:,1]*self.mesh.dx*0.1-self.mesh.dx*0.05)
-        new_pos_m[:,1] += (randg[:,2]*self.mesh.dy*0.1-self.mesh.dy*0.05)
+        new_pos_m[:,0] += (randg[:,1]*self.mesh.dx-self.mesh.dx*0.5)
+        new_pos_m[:,1] += (randg[:,2]*self.mesh.dy-self.mesh.dy*0.5)
         #Return new values
         return new_spwt_m, new_pos_m, new_vel_m
 

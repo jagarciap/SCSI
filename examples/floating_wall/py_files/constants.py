@@ -13,10 +13,10 @@ MU_0 = 4*numpy.pi*1e-7
 
 #Simulation time's parameters
 NUM_TS = numpy.int(140000)   #Number of total steps in the system
-P_DT= 8.86e-11#2.658e-8            # time step size
-E_DT = 1.772e-10        # time step for electron dynamics
+E_DT= 8.86e-11#2.658e-8            # time step size
+P_DT = 1.772e-8        # time step for electron dynamics
 E_TS = 1    #Timesteps required for execution of electron dynamics
-P_TS = 2#300   #Timesteps required for protons dynamics
+P_TS = 200#300   #Timesteps required for protons dynamics
 VTK_TS = 100 #Timesteps required for printing of VTK files
 PR_E_TS = 10 #Timesteps used for checking the electrons per cell in the domain
 PR_P_TS = 100 #Timesteps used for checking the electrons per cell in the domain
@@ -56,7 +56,7 @@ E_ALBEDO = 0.0
 P_N = 1e14
 P_T = 200
 P_V_TH_MP = numpy.sqrt(2*K*P_T/MP)     #Most Probable speed
-P_V_SW = 4907.64#-4063.1
+P_V_SW = 5000#4907.64#-4063.1
 
 #Particle simulation parameters
 P_SIZE = numpy.uint32(60e3)     #Size of the ions array
