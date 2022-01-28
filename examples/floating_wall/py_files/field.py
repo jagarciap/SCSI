@@ -235,19 +235,23 @@ class Electrostatic_2D_rm(Electric_Field):
         location = boundary.location
         #Field and potential
         for i in range(len(location)):
-            if location[i] < nx:
+            if boundary.directions[0] == 0:
                 self.field[location[i],1] = values[i]
                 self.potential[location[i]] = self.field[location[i],1]*dy+self.potential[location[i]+nx]
-            elif location[i] > nx*(ny-1):
+            elif boundary.directions[0] == 2:
                 self.field[location[i],1] = values[i]
                 self.potential[location[i]] = -self.field[location[i],1]*dy+self.potential[location[i]-nx]
-            elif location[i]%nx == 0:
+            elif boundary.directions[0] == 3:
                 self.field[location[i],0] = values[i]
                 self.potential[location[i]] = self.field[location[i],0]*dx+self.potential[location[i]+1]
             else:
                 self.field[location[i],0] = values[i]
                 self.potential[location[i]] = -self.field[location[i], 0]*dx+self.potential[location[i]-1]
         self.field[location,:] = -slv.derive_2D_rm_boundaries(self.potential, boundary, nx, ny, dx, dy)
+        #NOTE: THis needs a cleaner solution. THis is because the field in the last node of the domain is not being properly calculated.
+        nPoints = self.pic.mesh.nPoints
+        loc = nPoints-1
+        self.field[loc,0] = -(3*self.potential[loc]-4*self.potential[(loc-1)%nPoints]+self.potential[(loc-2)%nPoints])/(2*dx)
 
 
 #Electrostatic_2D_rm_sat (Inherits from Electrostatic_2D_rm):
@@ -277,7 +281,7 @@ class Electrostatic_2D_rm_sat(Electrostatic_2D_rm):
 
         try:
             self.capacity = numpy.linalg.inv(self.inv_capacity)
-            att = 5
+            att = 0.5
             self.capacity *= c.EPS_0*att
             self.inv_capacity /= c.EPS_0*att
         except numpy.linalg.LinAlgError:
