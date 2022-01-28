@@ -13,6 +13,7 @@ sys.path.insert(0,'..')
 import constants as c
 from mesh import Mesh_2D_rm_sat
 from mesh import Mesh_2D_cm_sat
+from mesh import Mesh_2D_rm_separateBorders
 from Boundaries.inner_2D_rectangular import Inner_2D_Rectangular
 from Boundaries.outer_1D_rectangular import Outer_1D_Rectangular
 from Boundaries.outer_2D_rectangular import Outer_2D_Rectangular
@@ -34,12 +35,14 @@ plt.rcParams['text.latex.preamble'] = [r'\boldmath']
 #mesh = Mesh_2D_rm_sat(7.0, 12.2, -2.6, 2.6, 9.0, 10.2, -0.6, 0.6, 0.02, 0.02, 1.2, [outer, inner])
 #temp = numpy.arange(mesh.nPoints, dtype = numpy.uint32)
 # 0-0-0
-outer = Outer_2D_Cylindrical(5.4, 10.2, 0.0, 2.4, 'space')
-inner = Inner_2D_Cylindrical(7.2, 8.4, 0.0, 0.6, 'satellite')
-mesh = Mesh_2D_cm_sat(5.4, 10.2, 0.0, 2.4, 7.2, 8.4, 0.0, 0.6, 0.03, 0.03, [outer, inner])
+bottom = Outer_1D_Rectangular(0.0, 0.01848, 0.0, 0.0, 'space')
+right = Outer_1D_Rectangular(0.01848, 0.01848, 0.0, 0.00154, 'wall')
+top = Outer_1D_Rectangular(0.0, 0.01848, 0.00154, 0.00154, 'space')
+left = Outer_1D_Rectangular(0.0, 0.0, 0.0, 0.00154, 'space')
+mesh = Mesh_2D_rm_separateBorders(0.0, 0.01848, 0.0, 0.00154, 3.08e-4, 3.08e-4, 0.00154, [bottom, right, top, left])
 temp = numpy.arange(mesh.nPoints, dtype = numpy.uint32)
 #temp = numpy.delete(temp, numpy.append(mesh.boundaries[1].location, mesh.boundaries[1].ind_inner))
-temp = numpy.delete(temp, mesh.boundaries[1].ind_inner)
+#temp = numpy.delete(temp, mesh.boundaries[1].ind_inner)
 
 ##Establishing a minimum of superparticles for a cell
 ## The minimum of required population of super particles will be 2 particles at the center of a cell with the maximum volume in the mesh
@@ -137,7 +140,7 @@ def current_collected_time(data, names):
         arr = [numpy.sum(data[name][loc[d_loc[j]],j]*mesh.area_sat[d_loc[j]])/1e-3 for j in range(numpy.shape(data[name])[1])]
         arr = [0 if numpy.isnan(x) else x for x in arr]
         #plt.plot(numpy.sum(data[i][loc]*numpy.repeat(mesh.volumes[loc]/(mesh.dx/2), numpy.shape(data[i])[1], axis = 1), axis = 0), label = name[i])
-        time = numpy.arange(len(data[name][0,:]))*c.P_DT*100/1e-6
+        time = numpy.arange(len(data[name][0,:]))*c.E_DT*c.VTK_TS/1e-6
         plt.plot(time, arr, label = name.replace('_', '\_'))
 
         avg = numpy.average(arr[int(2*len(arr)/3):])
@@ -299,7 +302,7 @@ def wall_potential(name):
 
 def satellite_potential_time(data, name, init_time = 0):
     fig = plt.figure(figsize=(16,8))
-    sat = numpy.unique(mesh.boundaries[1].top)
+    sat = numpy.unique(mesh.boundaries[1].location)
     ind_sat = sat[0]
     time = numpy.arange(init_time, init_time+len(data[name][0,init_time:]))*c.E_DT*c.E_TS*c.VTK_TS/1e-6
     plt.plot(time, data[name][ind_sat,init_time:], label = "Satellite potential")
@@ -604,10 +607,9 @@ def angle_velocity_photoelectron(data, names):
 
 data ={}
 names = [\
-        "Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux",\
-        "Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux",\
-        "Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density",\
-        "Electron - Photoelectron-velocity"
+        "Electric - Electrostatic_2D_rm_sat_cond-potential",\
+        "Electron-flux", "User defined species- Helium-flux",\
+        "Electron-accumulated density", "User defined species- Helium-accumulated density"\
         ]
 results = vtn.vtrToNumpy(mesh, vtn.loadFromResults(), names)
 for name, array in zip(names, results):
@@ -644,10 +646,10 @@ for name, array in zip(names, results):
 ###debye_length_test(["Electric - Electrostatic_2D_rm-potential"])
 #wall_potential(["Electric - Electrostatic_2D_rm_sat-potential"])
 ###wall_density_diff(["Electron - Solar wind-density", "Proton - Solar wind-density"])
-#satellite_potential_time(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
+satellite_potential_time(data, "Electric - Electrostatic_2D_rm_sat_cond-potential")
 #satellite_potential_FT(data, "Electric - Electrostatic_2D_cm_sat_cond-potential")
 #density_FT(data, "Electron - Solar wind-density")
-#current_collected_time(data, ["Electron - Photoelectron-flux", "Electron - SEE-flux", "Electron - Solar wind-flux", "Proton - Solar wind-flux"])
+current_collected_time(data, ["Electron-flux", "User defined species- Helium-flux"])
 #current_collected_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"])
 #current_recollection_percentage_time(data, ["Electron - Photoelectron-outgoing_flux", "Electron - SEE-outgoing_flux"],\
 #                                     ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
@@ -659,8 +661,8 @@ for name, array in zip(names, results):
 #                               ["Electron - Photoelectron-flux", "Electron - SEE-flux"])
 #surface_charge_density_time(["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
 #                            [c.QE, c.QE, c.QE, -c.QE])
-#net_surface_charge_density_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
-#                            [c.QE, c.QE, c.QE, -c.QE])
-#total_surface_charge_time(data, ["Electron - Photoelectron-accumulated density", "Electron - SEE-accumulated density", "Electron - Solar wind-accumulated density", "Proton - Solar wind-accumulated density"],\
-#                            [c.QE, c.QE, c.QE, -c.QE])
-angle_velocity_photoelectron(data, ["Electron - Photoelectron-velocity"])
+net_surface_charge_density_time(data, ["Electron-accumulated density", "User defined species- Helium-accumulated density"],\
+                            [c.QE, -c.QE])
+total_surface_charge_time(data, ["Electron-accumulated density", "User defined species- Helium-accumulated density"],\
+                            [c.QE, -c.QE])
+#angle_velocity_photoelectron(data, ["Electron - Photoelectron-velocity"])

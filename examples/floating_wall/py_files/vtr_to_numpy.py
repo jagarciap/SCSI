@@ -40,14 +40,14 @@ def vtrToNumpy(mesh, filenames, names):
             raise
     return arrays
 
-def loadFromResults(files_id = '0-0-0'):
+def loadFromResults(files_id = '0'):
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     cwd = os.path.split(os.getcwd())[0]
     cwd = cwd+'/results/'
     stdout = check_output('ls' +' {}'.format(cwd), shell=True)
     files = stdout.decode().split(sep='\n')
-    #files = list(filter(lambda x: '0-0-0-0_ts' in x, files)) 
-    files = list(filter(lambda x: x.partition('_')[0] == files_id and 'ts' in x.partition('_')[2], files)) 
+    #files = list(filter(lambda x: x.partition('_')[0] == files_id and 'ts' in x.partition('_')[2], files)) 
+    files = list(filter(lambda x: 'ts' in x, files)) 
     return files
 
 ## I commented this as I considered it unnecessary and more confusing than anything else. 'some_plots.py' in 'plotters' provides means to deal with the boundaries and the inner part of the satellite already.

@@ -14,9 +14,9 @@ MU_0 = 4*numpy.pi*1e-7
 #Simulation time's parameters
 NUM_TS = numpy.int(140000)   #Number of total steps in the system
 E_DT= 8.86e-11#2.658e-8            # time step size
-P_DT = 1.772e-8        # time step for electron dynamics
+P_DT = 4.43e-9#1.772e-8        # time step for electron dynamics
 E_TS = 1    #Timesteps required for execution of electron dynamics
-P_TS = 200#300   #Timesteps required for protons dynamics
+P_TS = 50#300   #Timesteps required for protons dynamics
 VTK_TS = 100 #Timesteps required for printing of VTK files
 PR_E_TS = 10 #Timesteps used for checking the electrons per cell in the domain
 PR_P_TS = 100 #Timesteps used for checking the electrons per cell in the domain
